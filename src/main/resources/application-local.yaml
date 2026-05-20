@@ -1,0 +1,11 @@
+spring:
+
+  datasource:
+    # tenta ler o DB_URL, se nao achar ele usa o localhost
+    url: jdbc:postgresql://localhost:5435/toffco_db
+    username: postgres
+    password: admin123
+    driver-class-name: org.postgresql.Driver
+  docker:
+    compose:
+      enabled: false
