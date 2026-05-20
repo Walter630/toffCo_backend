@@ -24,7 +24,7 @@ public class ExceptionHandlers extends ResponseEntityExceptionHandler {
     public ResponseEntity<ProblemDetail> handleInvalidRefreshToken(InvalidRefreshToken exception) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Invalid Refresh Token");
 
-        // Boa prática: Registrar no log do servidor quando alguém tentar usar um token bizarro
+        //Boa prática: Registrar no log do servidor quando alguém tentar usar um token bizarro
         log.warn("Tentativa de refresh com token inválido ou expirado.");
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
