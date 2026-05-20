@@ -12,7 +12,7 @@ MODULO=$1
 PACOTE=$(echo "$MODULO" | tr '[:upper:]' '[:lower:]')
 
 # === MUDE AQUI PARA O SEU PACOTE BASE ===
-PACOTE_BASE_JAVA="com.site.toffco"
+PACOTE_BASE_JAVA="com.site.toffCo"
 PACOTE_BASE_DIR="src/main/java/com/site/toffCo/module"
 # ========================================
 
@@ -29,6 +29,8 @@ package $PACOTE_BASE_JAVA.$PACOTE.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -49,6 +51,7 @@ import $PACOTE_BASE_JAVA.$PACOTE.entity.${MODULO};
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.UUID;
 @Repository
 public interface ${MODULO}Repository extends JpaRepository<${MODULO}, UUID> {
 }
@@ -94,6 +97,7 @@ EOF
 # 6. Cria o DTO (Record do Java 21/25)
 cat <<EOF > "$DIR_MODULO/dto/${MODULO}ResponseDTO.java"
 package $PACOTE_BASE_JAVA.$PACOTE.dto;
+import java.util.UUID;
 
 public record ${MODULO}ResponseDTO(
     UUID id
@@ -110,7 +114,7 @@ import org.mapstruct.Mapper;
 
 @Mapper(componentModel = "spring")
 public abstract class ${MODULO}Mapper {
-    ${MODULO}ResponseDTO toDto(${MODULO} entity);
+    public abstract ${MODULO}ResponseDTO toDto(${MODULO} entity);
 }
 EOF
 
