@@ -1,5 +1,7 @@
 package com.site.toffCo.infra.exception;
 
+import com.site.toffCo.infra.exception.product.CategoryNotExisting;
+import com.site.toffCo.infra.exception.product.ProductNotFound;
 import com.site.toffCo.infra.exception.user.EmailIsExisting;
 import com.site.toffCo.infra.exception.user.InvalidRefreshToken;
 import com.site.toffCo.infra.exception.user.UserNotFound;
@@ -42,6 +44,22 @@ public class ExceptionHandlers extends ResponseEntityExceptionHandler {
     public ResponseEntity<ProblemDetail> handleEmailIsExisting(EmailIsExisting exception) {
         ProblemDetail  problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Email already exists");
         log.warn("Tentativa de cadastrar usuario com email ja existente");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    //============================== PRODUCT ==============================
+
+    @ExceptionHandler(ProductNotFound.class)
+    public ResponseEntity<ProblemDetail> handleProductNotFound(ProductNotFound exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Product not found");
+        log.warn("Tentativa de buscar produto");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    @ExceptionHandler(CategoryNotExisting.class)
+    public ResponseEntity<ProblemDetail> handleCategoryNotExisting(CategoryNotExisting exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Category not exists");
+        log.warn("Tentativa de buscar produto pro categoria");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
 

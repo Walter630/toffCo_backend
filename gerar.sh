@@ -12,7 +12,7 @@ MODULO=$1
 PACOTE=$(echo "$MODULO" | tr '[:upper:]' '[:lower:]')
 
 # === MUDE AQUI PARA O SEU PACOTE BASE ===
-PACOTE_BASE_JAVA="br.com.toffco"
+PACOTE_BASE_JAVA="com.site.toffco"
 PACOTE_BASE_DIR="src/main/java/com/site/toffCo/module"
 # ========================================
 
@@ -109,7 +109,7 @@ import $PACOTE_BASE_JAVA.$PACOTE.dto.${MODULO}ResponseDTO;
 import org.mapstruct.Mapper;
 
 @Mapper(componentModel = "spring")
-public interface ${MODULO}Mapper {
+public abstract class ${MODULO}Mapper {
     ${MODULO}ResponseDTO toDto(${MODULO} entity);
 }
 EOF
