@@ -25,6 +25,7 @@ public class PedidoConsumer {
                 .orElseThrow(() -> new UserNotFound("Usuario no encontrado!"));
 
         // envia email para o usuario
-        emailService.sendEmail(user.getEmail(), pedidoEvent);
+        emailService.sendEmail(pedidoEvent.emailUser(), pedidoEvent);
+        System.out.println("E-mail enviado com sucesso!");
     }
 }

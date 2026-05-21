@@ -1,5 +1,6 @@
 package com.site.toffCo.infra.exception;
 
+import com.site.toffCo.infra.exception.carrinho.CarNotFound;
 import com.site.toffCo.infra.exception.product.CategoryNotExisting;
 import com.site.toffCo.infra.exception.product.ProductNotFound;
 import com.site.toffCo.infra.exception.user.EmailIsExisting;
@@ -60,6 +61,15 @@ public class ExceptionHandlers extends ResponseEntityExceptionHandler {
     public ResponseEntity<ProblemDetail> handleCategoryNotExisting(CategoryNotExisting exception) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Category not exists");
         log.warn("Tentativa de buscar produto pro categoria");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    //============================== CAR ==============================
+
+    @ExceptionHandler(CarNotFound.class)
+    public  ResponseEntity<ProblemDetail> handleCarNotFound(CarNotFound exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Car not found");
+        log.warn("Tentativa de buscar car");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
 
