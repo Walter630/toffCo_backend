@@ -1,9 +1,13 @@
-package com.site.toffCo.infra.rabbitMQ;
+package com.site.toffCo.module.pedido.service;
 
 import com.site.toffCo.infra.exception.carrinho.CarNotFound;
+import com.site.toffCo.module.pedido.dto.PedidoEvent;
+import com.site.toffCo.infra.rabbitMQ.PedidoProducer;
 import com.site.toffCo.module.carrinho.entity.Carrinho;
 import com.site.toffCo.module.carrinho.repository.CarrinhoRepository;
 import com.site.toffCo.module.carrinho.service.CarrinhoService;
+import com.site.toffCo.module.pedido.entity.Pedido;
+import com.site.toffCo.module.pedido.repository.PedidoRepository;
 import jakarta.transaction.Transactional;
 
 import java.util.UUID;

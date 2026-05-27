@@ -1,8 +1,8 @@
 package com.site.toffCo.infra.rabbitMQ;
 
+import com.site.toffCo.module.pedido.dto.PedidoEvent;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.stereotype.Service;
-import com.site.toffCo.infra.rabbitMQ.RabbitMQConfig;
 
 @Service
 public class PedidoProducer {

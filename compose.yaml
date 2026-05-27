@@ -11,6 +11,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
     networks:
       - app-network
@@ -44,6 +46,21 @@ services:
     ports:
       - '5674:5672'
       - '15674:15672'
+    networks:
+      - app-network
+
+  # ─── Redis ───────────────────────────────────────
+
+  redis:
+    image: 'redis:8-alpine'
+    container_name: redis-toffco
+    environment:
+      - 'REDIS_PASS=guest'
+    ports:
+      - '6380:6379'
+    restart: unless-stopped
+    networks:
+      - app-network
 
 volumes:
   postgres_data:

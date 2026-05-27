@@ -1,4 +1,4 @@
-package com.site.toffCo.infra.rabbitMQ;
+package com.site.toffCo.module.pedido.dto;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -8,7 +8,6 @@ import java.util.UUID;
 public record PedidoEvent(
         UUID pedidoId,
         UUID usuarioId,
-        List<UUID> produtos,
         BigDecimal total,
         String emailUser
 ) implements Serializable {

@@ -12,7 +12,7 @@ MODULO=$1
 PACOTE=$(echo "$MODULO" | tr '[:upper:]' '[:lower:]')
 
 # === MUDE AQUI PARA O SEU PACOTE BASE ===
-PACOTE_BASE_JAVA="com.site.toffCo"
+PACOTE_BASE_JAVA="com.site.toffCo.module"
 PACOTE_BASE_DIR="src/main/java/com/site/toffCo/module"
 # ========================================
 

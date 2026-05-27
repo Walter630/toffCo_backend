@@ -14,7 +14,7 @@ public class CleanupService {
     public CleanupService(RefreshTokenRepository refreshTokenRepository) {
         this.refreshTokenRepository = refreshTokenRepository;
     }
-
+    // * pega do primeiro valor ao ultimo valor, comaça do seg, hora, dia, semana, mes e ano
     @Scheduled(cron = "0 0 3 * * ?")
     @Transactional
     public void cleanup() {

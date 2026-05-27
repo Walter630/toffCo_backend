@@ -1,4 +1,4 @@
-package com.site.toffCo.infra.rabbitMQ;
+package com.site.toffCo.module.pedido.entity;
 
 import com.site.toffCo.module.user.entity.User;
 import jakarta.persistence.*;
