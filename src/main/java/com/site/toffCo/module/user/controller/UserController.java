@@ -1,8 +1,8 @@
 package com.site.toffCo.module.user.controller;
 
 import com.site.toffCo.module.auth.dto.RefreshTokenDTO;
-import com.site.toffCo.module.user.dto.LoginRequestDTO;
-import com.site.toffCo.module.user.dto.LoginResponseDTO;
+import com.site.toffCo.module.login.dto.LoginRequestDTO;
+import com.site.toffCo.module.login.dto.LoginResponseDTO;
 import com.site.toffCo.module.user.dto.UserRequestDTO;
 import com.site.toffCo.module.user.dto.UserResponseDTO;
 import com.site.toffCo.module.user.service.UserService;

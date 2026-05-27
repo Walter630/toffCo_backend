@@ -4,9 +4,11 @@ import com.site.toffCo.infra.exception.user.EmailIsExisting;
 import com.site.toffCo.infra.exception.user.InvalidRefreshToken;
 import com.site.toffCo.infra.security.TokenService;
 import com.site.toffCo.module.auth.service.RefreshTokenService;
-import com.site.toffCo.module.user.dto.LoginRequestDTO;
-import com.site.toffCo.module.user.dto.LoginResponseDTO;
+import com.site.toffCo.module.login.dto.LoginEvent;
+import com.site.toffCo.module.login.dto.LoginRequestDTO;
+import com.site.toffCo.module.login.dto.LoginResponseDTO;
 import com.site.toffCo.module.auth.dto.RefreshTokenDTO;
+import com.site.toffCo.module.login.service.LoginProducer;
 import com.site.toffCo.module.user.dto.UserRequestDTO;
 import com.site.toffCo.module.user.dto.UserResponseDTO;
 import com.site.toffCo.module.auth.entity.RefreshToken;
@@ -14,7 +16,6 @@ import com.site.toffCo.module.user.entity.Role;
 import com.site.toffCo.module.user.mapper.UserMapper;
 import com.site.toffCo.module.user.repository.UserRepository;
 import jakarta.transaction.Transactional;
-import lombok.extern.java.Log;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
@@ -29,13 +30,15 @@ public class UserService {
     private final TokenService tokenService;
     private final AuthenticationManager authenticationManager;
     private final RefreshTokenService refreshTokenService;
+    private final LoginProducer loginProducer;
 
-    public UserService(UserRepository repository, RefreshTokenService refresh , UserMapper mapper,  TokenService tokenService,  AuthenticationManager authenticationManager) {
+    public UserService(UserRepository repository, RefreshTokenService refresh , UserMapper mapper,  TokenService tokenService,  AuthenticationManager authenticationManager, LoginProducer loginProducer) {
         this.repository = repository;
         this.mapper = mapper;
         this.tokenService = tokenService ;
         this.authenticationManager = authenticationManager;
         this.refreshTokenService = refresh;
+        this.loginProducer = loginProducer;
     }
 
     //============================== CREATE \ REGISTER ==============================
@@ -65,6 +68,8 @@ public class UserService {
         var accessToken = tokenService.generateToken(loginRequestDTO.email());
 
         var refreshToken = refreshTokenService.createRefreshToken(userCreate);
+
+        loginProducer.send(new LoginEvent(userCreate.getEmail(), userCreate.getName()));
         return new LoginResponseDTO(accessToken, refreshToken.getToken());
     }
 

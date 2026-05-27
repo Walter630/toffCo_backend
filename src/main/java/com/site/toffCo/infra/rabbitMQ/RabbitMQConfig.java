@@ -15,11 +15,15 @@ public class RabbitMQConfig {
     public static final String EXCHANGE_NAME = "toffco.exchange";
     public static final String ROUTING_KEY = "pedido.criado";
 
+    public static final String LOGIN_QUEUE = "login";
+    public static final String LOGIN_ROUTING_KEY = "user.login";
+
     @Bean
     public Queue produtoQueue() {
         return new Queue(QUEUE_NAME, true);
     }
-
+    @Bean
+    public Queue loginQueue() {return new Queue(LOGIN_QUEUE, true);}
     @Bean
     public DirectExchange produtoExchange() {
         return new DirectExchange(EXCHANGE_NAME);
@@ -32,6 +36,15 @@ public class RabbitMQConfig {
                 .to(produtoExchange())
                 .with(ROUTING_KEY);
     }
+
+    @Bean
+    public Binding loginBinding() {
+        return BindingBuilder
+                .bind(loginQueue())
+                .to(produtoExchange())
+                .with(LOGIN_ROUTING_KEY);
+    }
+
     @Bean
     public MessageConverter produtoMessageConverter() {
         return new JacksonJsonMessageConverter();

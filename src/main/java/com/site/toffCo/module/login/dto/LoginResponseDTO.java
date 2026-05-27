@@ -1,4 +1,4 @@
-package com.site.toffCo.module.user.dto;
+package com.site.toffCo.module.login.dto;
 
 public record LoginResponseDTO(String token, String refreshToken) {
 }

@@ -1,10 +1,7 @@
 package com.site.toffCo.module.user.service;
 
 import com.site.toffCo.infra.security.TokenService;
-import com.site.toffCo.module.auth.entity.RefreshToken;
 import com.site.toffCo.module.auth.service.RefreshTokenService;
-import com.site.toffCo.module.user.dto.LoginRequestDTO;
-import com.site.toffCo.module.user.dto.LoginResponseDTO;
 import com.site.toffCo.module.user.dto.UserRequestDTO;
 import com.site.toffCo.module.user.dto.UserResponseDTO;
 import com.site.toffCo.module.user.entity.Role;
@@ -19,11 +16,6 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-
-import java.util.Optional;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
