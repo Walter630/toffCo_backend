@@ -1,6 +1,8 @@
 package com.site.toffCo.infra.exception;
 
 import com.site.toffCo.infra.exception.carrinho.CarNotFound;
+import com.site.toffCo.infra.exception.item.ItemNotFound;
+import com.site.toffCo.infra.exception.item.QuantidadInvalid;
 import com.site.toffCo.infra.exception.product.CategoryNotExisting;
 import com.site.toffCo.infra.exception.product.ProductNotFound;
 import com.site.toffCo.infra.exception.user.EmailIsExisting;
@@ -71,6 +73,22 @@ public class ExceptionHandlers extends ResponseEntityExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Car not found");
         log.warn("Tentativa de buscar car");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    //============================== ITEM ==============================
+
+    @ExceptionHandler(ItemNotFound.class)
+    public ResponseEntity<ProblemDetail> handleItemNotFound(ItemNotFound exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Item not found");
+        log.warn("Tentativa de buscar item");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    @ExceptionHandler(QuantidadInvalid.class)
+    public ResponseEntity<ProblemDetail> handleQuantidadInvalid(QuantidadInvalid exception) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Quantidad invalida");
+        log.warn("Tentativa de buscar quantidad invalida");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetail);
     }
 
     // ============================== VALIDATION OVERRIDES ==============================

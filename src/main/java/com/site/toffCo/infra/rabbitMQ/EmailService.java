@@ -2,7 +2,7 @@ package com.site.toffCo.infra.rabbitMQ;
 
 import com.site.toffCo.module.pedido.dto.PedidoEvent;
 import jakarta.mail.MessagingException;
-import jakarta.validation.MessageInterpolator;
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -45,17 +45,18 @@ public class EmailService {
     }
 
     public void sendLoginEmail(String to, String nome) throws MessagingException {
-        var mimeMessage = mailSender.createMimeMessage();
+        MimeMessage mimeMessage = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+
         Context context =  new Context();
         context.setVariable("nome", nome);
 
-        String htmlBody = templateEngine.process("login.html", context);
+        String htmlBody = templateEngine.process("test-mail", context);
         helper.setTo(to);
         helper.setFrom("toffco@gmail.com");
-        helper.setSubject("Novo acesso na sua conta ToffCo");
+        helper.setSubject("Bem-vindo a toffco!");
         helper.setText(htmlBody, true);
 
-        mailSender.send(helper.getMimeMessage());
+        mailSender.send(mimeMessage);
     }
 }

@@ -2,6 +2,7 @@ package com.site.toffCo.module.user.service;
 
 import com.site.toffCo.infra.security.TokenService;
 import com.site.toffCo.module.auth.service.RefreshTokenService;
+import com.site.toffCo.module.user.dto.RegisterEvent;
 import com.site.toffCo.module.user.dto.UserRequestDTO;
 import com.site.toffCo.module.user.dto.UserResponseDTO;
 import com.site.toffCo.module.user.entity.Role;
@@ -16,7 +17,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
-
+import static org.mockito.ArgumentMatchers.any;
 import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -33,6 +34,8 @@ class UserServiceTest {
     private TokenService tokenService;
     @Mock
     private RefreshTokenService refreshTokenService;
+    @Mock
+    private RegisterProducer registerProducer;
 
     @InjectMocks
     private UserService service;
@@ -63,6 +66,7 @@ class UserServiceTest {
         Mockito.verify(userMapper).toEntity(dto);
         Mockito.verify(userRepository, Mockito.times(1)).save(user);
         Mockito.verify(userMapper).toDto(user);
+        Mockito.verify(registerProducer).send(any(RegisterEvent.class));
     }
 
     //@Test

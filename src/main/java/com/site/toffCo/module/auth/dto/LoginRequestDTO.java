@@ -1,4 +1,4 @@
-package com.site.toffCo.module.login.dto;
+package com.site.toffCo.module.auth.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

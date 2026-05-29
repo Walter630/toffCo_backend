@@ -4,11 +4,10 @@ import com.site.toffCo.infra.exception.user.EmailIsExisting;
 import com.site.toffCo.infra.exception.user.InvalidRefreshToken;
 import com.site.toffCo.infra.security.TokenService;
 import com.site.toffCo.module.auth.service.RefreshTokenService;
-import com.site.toffCo.module.login.dto.LoginEvent;
-import com.site.toffCo.module.login.dto.LoginRequestDTO;
-import com.site.toffCo.module.login.dto.LoginResponseDTO;
+import com.site.toffCo.module.user.dto.RegisterEvent;
+import com.site.toffCo.module.auth.dto.LoginRequestDTO;
+import com.site.toffCo.module.auth.dto.LoginResponseDTO;
 import com.site.toffCo.module.auth.dto.RefreshTokenDTO;
-import com.site.toffCo.module.login.service.LoginProducer;
 import com.site.toffCo.module.user.dto.UserRequestDTO;
 import com.site.toffCo.module.user.dto.UserResponseDTO;
 import com.site.toffCo.module.auth.entity.RefreshToken;
@@ -30,15 +29,15 @@ public class UserService {
     private final TokenService tokenService;
     private final AuthenticationManager authenticationManager;
     private final RefreshTokenService refreshTokenService;
-    private final LoginProducer loginProducer;
+    private final RegisterProducer registerProducer;
 
-    public UserService(UserRepository repository, RefreshTokenService refresh , UserMapper mapper,  TokenService tokenService,  AuthenticationManager authenticationManager, LoginProducer loginProducer) {
+    public UserService(UserRepository repository, RefreshTokenService refresh , UserMapper mapper,  TokenService tokenService,  AuthenticationManager authenticationManager, RegisterProducer registerProducer) {
         this.repository = repository;
         this.mapper = mapper;
         this.tokenService = tokenService ;
         this.authenticationManager = authenticationManager;
         this.refreshTokenService = refresh;
-        this.loginProducer = loginProducer;
+        this.registerProducer = registerProducer;
     }
 
     //============================== CREATE \ REGISTER ==============================
@@ -54,6 +53,8 @@ public class UserService {
         // (ex: UserRole.CLIENTE, RoleEnum.DEFAULT_USER, et
         userCriado.setRole(Role.USER);
         var userSave = this.repository.save(userCriado);
+
+        registerProducer.send(new RegisterEvent(userSave.getEmail(), userSave.getName()));
         return mapper.toDto(userSave);
     }
 
@@ -68,8 +69,6 @@ public class UserService {
         var accessToken = tokenService.generateToken(loginRequestDTO.email());
 
         var refreshToken = refreshTokenService.createRefreshToken(userCreate);
-
-        loginProducer.send(new LoginEvent(userCreate.getEmail(), userCreate.getName()));
         return new LoginResponseDTO(accessToken, refreshToken.getToken());
     }
 
