@@ -15,12 +15,14 @@ import com.site.toffCo.module.user.entity.Role;
 import com.site.toffCo.module.user.mapper.UserMapper;
 import com.site.toffCo.module.user.repository.UserRepository;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Slf4j
 @Service
 public class UserService {
 
@@ -45,6 +47,7 @@ public class UserService {
     @Transactional
     public UserResponseDTO CreateUser(UserRequestDTO userRequestDTO) {
         if(repository.findByEmail(userRequestDTO.email()).isPresent()) {
+            log.info("Email existente para o produto: {}", userRequestDTO.email());
             throw new EmailIsExisting("E-mail já cadastrado!"); // Ou seu ExceptionHandler personalizado
         }
         var userCriado = mapper.toEntity(userRequestDTO);
@@ -53,7 +56,7 @@ public class UserService {
         // (ex: UserRole.CLIENTE, RoleEnum.DEFAULT_USER, et
         userCriado.setRole(Role.USER);
         var userSave = this.repository.save(userCriado);
-
+        log.info("User criado: {}", userCriado);
         registerProducer.send(new RegisterEvent(userSave.getEmail(), userSave.getName()));
         return mapper.toDto(userSave);
     }
@@ -69,6 +72,7 @@ public class UserService {
         var accessToken = tokenService.generateToken(loginRequestDTO.email());
 
         var refreshToken = refreshTokenService.createRefreshToken(userCreate);
+        log.info("Token: {}, refreshToken: {}", accessToken, refreshToken);
         return new LoginResponseDTO(accessToken, refreshToken.getToken());
     }
 

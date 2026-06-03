@@ -38,7 +38,4 @@ public class User {
 
     public void setToken(String token) {
     }
-
-    public void setExpiryDate(Instant plus) {
-    }
 }
