@@ -36,10 +36,19 @@ spring:
   data:
     redis:
       host: localhost
-      port: 6379
-      password: guest
+      port: 6380
+
   cache:
     type: redis
 
 jwt:
   secret: ${JWT_SECRET:suaSenha}
+
+server:
+  port: 8081
+
+evolution:
+  api:
+    url: http://localhost:8080
+    instance: ToffCoBot
+    key: senha_secreta_23C_ads_Te

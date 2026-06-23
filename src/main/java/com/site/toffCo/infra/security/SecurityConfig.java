@@ -43,7 +43,10 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/auth/login",
-                                "/api/auth/register"
+                                "/api/auth/register",
+                                "/webhook/whatsapp/receive",
+                                "/webhook/set/ToffCoBot",
+                                "/instance/create"
                         ).permitAll() // Rota pública
                         .anyRequest().authenticated() // Bloqueia o resto
                 )

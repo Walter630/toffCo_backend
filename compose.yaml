@@ -2,20 +2,6 @@ version: '3.9'
 services:
 
   # ─── Sua aplicação ───────────────────────────────────────
-  app:
-    build: .
-    ports:
-      - '8080:8080'
-    env_file:
-      - .env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    restart: unless-stopped
-    networks:
-      - app-network
   # ─── PostgresSQL ───────────────────────────────────────
   postgres:
     container_name: toffCo
@@ -54,11 +40,20 @@ services:
   redis:
     image: 'redis:8-alpine'
     container_name: redis-toffco
-    environment:
-      - 'REDIS_PASS=guest'
     ports:
       - '6380:6379'
     restart: unless-stopped
+    networks:
+      - app-network
+
+  evolution-api:
+    image: atendai/evolution-api:latest
+    container_name: evolution-api
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_URL=http://localhost:8080
+      - AUTHENTICATION_API_KEY=senha_secreta_23C_ads_Te
     networks:
       - app-network
 

@@ -9,3 +9,11 @@ spring:
   docker:
     compose:
       enabled: false
+
+
+
+evolution:
+  api:
+    url: http://localhost:8080
+    instance: ToffCoBot
+    key: senha_secreta_23C_ads_Te

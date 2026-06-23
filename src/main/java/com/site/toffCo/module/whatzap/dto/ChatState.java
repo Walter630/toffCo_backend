@@ -1,0 +1,1 @@
+package com.site.toffCo.module.whatzap.dto;public enum ChatState {    MENU_PRINCIPAL,    CATALOGO,    ATENDIMENTO_HUMANO}

@@ -20,7 +20,6 @@ public abstract class UserMapper {
     @Mapping(target = "createTime", ignore = true) // Ignora campos de auditoria
     @Mapping(target = "updateTime", ignore = true) // Ignora campos de auditoria
     @Mapping(target = "token", ignore = true)
-    @Mapping(target = "expiryDate",  ignore = true)
     public abstract User toEntity(UserRequestDTO requestDTO);
 
     public abstract UserResponseDTO toDto(User entity);
