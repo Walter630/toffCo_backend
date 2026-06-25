@@ -1,0 +1,13 @@
+package com.site.toffCo.module.produto.dto;
+
+import java.math.BigDecimal;
+import java.util.UUID;
+
+public record ProdutoResponseDTO(
+        UUID id,
+    String name,
+    String description,
+    String image,
+    BigDecimal price,
+    Integer estoque
+) {}

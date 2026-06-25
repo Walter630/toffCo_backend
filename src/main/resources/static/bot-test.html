@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ToffCo Bot Lab</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #07110e;
+            --panel: #101d19;
+            --panel-2: #162620;
+            --line: #284039;
+            --text: #edf7f2;
+            --muted: #93aaa1;
+            --green: #2dd881;
+            --green-dark: #075e54;
+            --red: #ff6b6b;
+            --yellow: #f4c95d;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 10% 10%, #12392c 0, transparent 30%),
+                radial-gradient(circle at 90% 85%, #123028 0, transparent 35%),
+                var(--bg);
+            font: 15px/1.45 Inter, ui-sans-serif, system-ui, sans-serif;
+        }
+
+        .shell {
+            width: min(1180px, calc(100% - 32px));
+            margin: 32px auto;
+        }
+
+        header {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 22px;
+        }
+
+        h1, h2, p { margin-top: 0; }
+        h1 { margin-bottom: 4px; font-size: clamp(26px, 4vw, 42px); }
+        h2 { margin-bottom: 16px; font-size: 20px; }
+        .subtitle, .hint { color: var(--muted); }
+        .subtitle { margin: 0; }
+        .status { display: flex; gap: 8px; align-items: center; color: var(--muted); }
+        .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--yellow); }
+        .dot.ok { background: var(--green); box-shadow: 0 0 14px var(--green); }
+        .dot.error { background: var(--red); }
+
+        .grid {
+            display: grid;
+            grid-template-columns: minmax(320px, .9fr) minmax(420px, 1.25fr);
+            gap: 20px;
+        }
+
+        .card {
+            background: color-mix(in srgb, var(--panel) 94%, transparent);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            box-shadow: 0 20px 70px #0005;
+            overflow: hidden;
+        }
+
+        .card-body { padding: 22px; }
+        label { display: block; margin-bottom: 7px; color: var(--muted); font-size: 13px; }
+
+        input, select, button {
+            font: inherit;
+            border-radius: 10px;
+        }
+
+        input, select {
+            width: 100%;
+            color: var(--text);
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            padding: 11px 12px;
+            outline: none;
+        }
+
+        input:focus, select:focus { border-color: var(--green); }
+
+        button {
+            border: 0;
+            padding: 11px 15px;
+            color: #032016;
+            background: var(--green);
+            font-weight: 750;
+            cursor: pointer;
+        }
+
+        button:hover { filter: brightness(1.08); }
+        button:disabled { cursor: not-allowed; opacity: .45; }
+        button.secondary { color: var(--text); background: #263d36; }
+        button.danger { color: white; background: #8f3535; }
+
+        .row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+        .chat-head {
+            padding: 15px 18px;
+            background: var(--green-dark);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chat-head strong { display: block; }
+        .chat-head small { color: #cce5dc; }
+
+        .messages {
+            min-height: 420px;
+            max-height: 550px;
+            overflow: auto;
+            padding: 20px;
+            background-color: #0b1713;
+            background-image: radial-gradient(#ffffff09 1px, transparent 1px);
+            background-size: 18px 18px;
+        }
+
+        .bubble {
+            width: fit-content;
+            max-width: 86%;
+            margin-bottom: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .bubble.user {
+            margin-left: auto;
+            background: #145c43;
+            border-bottom-right-radius: 2px;
+        }
+
+        .bubble.bot {
+            background: #22342e;
+            border-bottom-left-radius: 2px;
+        }
+
+        .bubble.error { background: #5c2727; }
+        .time { display: block; margin-top: 4px; color: #ffffff80; font-size: 10px; text-align: right; }
+
+        .composer {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            padding: 14px;
+            background: #15231e;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 18px 0;
+        }
+
+        .metric {
+            padding: 13px;
+            background: var(--panel-2);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+        }
+
+        .metric strong { display: block; font-size: 24px; }
+        .metric span { color: var(--muted); font-size: 12px; }
+        .progress { height: 9px; overflow: hidden; border-radius: 99px; background: #263b34; }
+        .progress > div { width: 0; height: 100%; background: var(--green); transition: width .15s; }
+
+        .log {
+            height: 205px;
+            overflow: auto;
+            margin-top: 15px;
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #09120f;
+            color: #b8cbc4;
+            font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+            white-space: pre-wrap;
+        }
+
+        .ok-text { color: var(--green); }
+        .error-text { color: var(--red); }
+
+        @media (max-width: 900px) {
+            .grid { grid-template-columns: 1fr; }
+            header { align-items: start; flex-direction: column; }
+        }
+
+        @media (max-width: 560px) {
+            .shell { width: min(100% - 18px, 1180px); margin: 14px auto; }
+            .row, .metrics { grid-template-columns: 1fr 1fr; }
+            .card-body { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+<main class="shell">
+    <header>
+        <div>
+            <h1>ToffCo Bot Lab</h1>
+            <p class="subtitle">Chat manual e teste de carga leve sem usar números reais.</p>
+        </div>
+        <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Verificando API...</span></div>
+    </header>
+
+    <section class="grid">
+        <div>
+            <article class="card">
+                <div class="chat-head">
+                    <div><strong>Atendimento simulado</strong><small id="chatNumberLabel"></small></div>
+                    <button class="secondary" id="newChatButton">Nova conversa</button>
+                </div>
+                <div class="messages" id="messages"></div>
+                <form class="composer" id="chatForm">
+                    <input id="chatInput" autocomplete="off" placeholder="Digite oi, 1, 2, 3..." required>
+                    <button id="sendButton">Enviar</button>
+                </form>
+            </article>
+        </div>
+
+        <div>
+            <article class="card">
+                <div class="card-body">
+                    <h2>Teste em lote</h2>
+                    <div class="row">
+                        <div>
+                            <label for="clientCount">Clientes fictícios</label>
+                            <select id="clientCount">
+                                <option value="100">100 clientes</option>
+                                <option value="500">500 clientes</option>
+                                <option value="1000">1.000 clientes</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="concurrency">Requisições simultâneas</label>
+                            <select id="concurrency">
+                                <option value="5">5</option>
+                                <option value="10" selected>10</option>
+                                <option value="20">20</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div>
+                            <label for="scenario">Cenário por cliente</label>
+                            <select id="scenario">
+                                <option value="welcome">Somente saudação (1 mensagem)</option>
+                                <option value="filament">Abrir filamentos (2 mensagens)</option>
+                                <option value="products">Abrir produtos (2 mensagens)</option>
+                                <option value="mixed" selected>Misto aleatório (1–2 mensagens)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="timeout">Timeout por requisição</label>
+                            <select id="timeout">
+                                <option value="5000">5 segundos</option>
+                                <option value="10000" selected>10 segundos</option>
+                                <option value="20000">20 segundos</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="actions">
+                        <button id="runButton">Executar teste</button>
+                        <button class="danger" id="stopButton" disabled>Parar</button>
+                        <button class="secondary" id="clearLogButton">Limpar relatório</button>
+                    </div>
+
+                    <div class="metrics">
+                        <div class="metric"><strong id="doneMetric">0</strong><span>clientes concluídos</span></div>
+                        <div class="metric"><strong class="ok-text" id="successMetric">0</strong><span>requisições OK</span></div>
+                        <div class="metric"><strong class="error-text" id="errorMetric">0</strong><span>erros</span></div>
+                        <div class="metric"><strong id="latencyMetric">0 ms</strong><span>latência média</span></div>
+                    </div>
+
+                    <div class="progress"><div id="progressBar"></div></div>
+                    <p class="hint" id="summary" style="margin: 10px 0 0">Pronto para executar.</p>
+                    <div class="log" id="log">O relatório aparecerá aqui.</div>
+                </div>
+            </article>
+        </div>
+    </section>
+</main>
+
+<script>
+    const endpoint = "/webhook/whatsapp/simulate";
+    const $ = id => document.getElementById(id);
+    let chatNumber = newId("chat");
+    let stopRequested = false;
+
+    function newId(prefix) {
+        return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    function setChatNumber() {
+        $("chatNumberLabel").textContent = chatNumber;
+    }
+
+    function addBubble(text, type) {
+        const bubble = document.createElement("div");
+        bubble.className = `bubble ${type}`;
+        bubble.textContent = text;
+        const time = document.createElement("span");
+        time.className = "time";
+        time.textContent = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        bubble.appendChild(time);
+        $("messages").appendChild(bubble);
+        $("messages").scrollTop = $("messages").scrollHeight;
+    }
+
+    async function simulate(number, message, timeoutMs) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        const started = performance.now();
+        try {
+            const response = await fetch(endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ number, message }),
+                signal: controller.signal
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+            return { data, latency: performance.now() - started };
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
+    async function checkApi() {
+        try {
+            await simulate(newId("health"), "oi", 5000);
+            $("statusDot").className = "dot ok";
+            $("statusText").textContent = "API disponível";
+        } catch {
+            $("statusDot").className = "dot error";
+            $("statusText").textContent = "API indisponível";
+        }
+    }
+
+    $("chatForm").addEventListener("submit", async event => {
+        event.preventDefault();
+        const message = $("chatInput").value.trim();
+        if (!message) return;
+        addBubble(message, "user");
+        $("chatInput").value = "";
+        $("sendButton").disabled = true;
+        try {
+            const result = await simulate(chatNumber, message, 10000);
+            addBubble(result.data.response || "Sem resposta do bot.", "bot");
+        } catch (error) {
+            addBubble(`Erro: ${error.message}`, "error");
+        } finally {
+            $("sendButton").disabled = false;
+            $("chatInput").focus();
+        }
+    });
+
+    $("newChatButton").addEventListener("click", () => {
+        chatNumber = newId("chat");
+        $("messages").replaceChildren();
+        setChatNumber();
+        addBubble("Nova conversa criada. Envie “oi” para começar.", "bot");
+    });
+
+    function messagesForScenario(scenario, index) {
+        if (scenario === "filament") return ["oi", "1"];
+        if (scenario === "products") return ["oi", "2"];
+        if (scenario === "mixed") return index % 3 === 0 ? ["oi"] : index % 3 === 1 ? ["oi", "1"] : ["oi", "2"];
+        return ["oi"];
+    }
+
+    function appendLog(text) {
+        const log = $("log");
+        if (log.textContent === "O relatório aparecerá aqui.") log.textContent = "";
+        log.textContent += `${text}\n`;
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function updateMetrics(state, totalClients) {
+        $("doneMetric").textContent = state.done;
+        $("successMetric").textContent = state.success;
+        $("errorMetric").textContent = state.errors;
+        $("latencyMetric").textContent = state.requests ? `${Math.round(state.totalLatency / state.requests)} ms` : "0 ms";
+        $("progressBar").style.width = `${(state.done / totalClients) * 100}%`;
+    }
+
+    async function runClient(index, runId, scenario, timeoutMs, state, totalClients) {
+        const number = `load-${runId}-${String(index + 1).padStart(4, "0")}`;
+        const messages = messagesForScenario(scenario, index);
+        for (const message of messages) {
+            if (stopRequested) break;
+            try {
+                const result = await simulate(number, message, timeoutMs);
+                state.success++;
+                state.requests++;
+                state.totalLatency += result.latency;
+            } catch (error) {
+                state.errors++;
+                state.requests++;
+                if (state.errors <= 30) appendLog(`ERRO ${number}: ${error.message}`);
+                break;
+            }
+        }
+        state.done++;
+        if (state.done % 10 === 0 || state.done === totalClients) {
+            appendLog(`${state.done}/${totalClients} clientes concluídos`);
+        }
+        updateMetrics(state, totalClients);
+    }
+
+    async function worker(queue, task) {
+        while (queue.length && !stopRequested) {
+            const index = queue.shift();
+            await task(index);
+        }
+    }
+
+    $("runButton").addEventListener("click", async () => {
+        const totalClients = Number($("clientCount").value);
+        const concurrency = Number($("concurrency").value);
+        const timeoutMs = Number($("timeout").value);
+        const scenario = $("scenario").value;
+        const runId = newId("run");
+        const state = { done: 0, success: 0, errors: 0, requests: 0, totalLatency: 0 };
+        const queue = Array.from({ length: totalClients }, (_, index) => index);
+
+        stopRequested = false;
+        $("runButton").disabled = true;
+        $("stopButton").disabled = false;
+        $("log").textContent = "";
+        $("summary").textContent = `Executando ${totalClients} clientes com concorrência ${concurrency}...`;
+        updateMetrics(state, totalClients);
+        appendLog(`Início: ${new Date().toLocaleString("pt-BR")}`);
+        appendLog(`Execução: ${runId}`);
+
+        const started = performance.now();
+        const workers = Array.from(
+            { length: Math.min(concurrency, totalClients) },
+            () => worker(queue, index => runClient(index, runId, scenario, timeoutMs, state, totalClients))
+        );
+        await Promise.all(workers);
+        const duration = ((performance.now() - started) / 1000).toFixed(2);
+
+        const stopped = stopRequested;
+        $("summary").textContent = stopped
+            ? `Teste interrompido após ${state.done} clientes em ${duration}s.`
+            : `Finalizado em ${duration}s: ${state.success} respostas OK e ${state.errors} erros.`;
+        appendLog(`${stopped ? "Interrompido" : "Fim"}: ${new Date().toLocaleString("pt-BR")} (${duration}s)`);
+        $("runButton").disabled = false;
+        $("stopButton").disabled = true;
+    });
+
+    $("stopButton").addEventListener("click", () => {
+        stopRequested = true;
+        $("stopButton").disabled = true;
+        $("summary").textContent = "Parando após as requisições atuais...";
+    });
+
+    $("clearLogButton").addEventListener("click", () => {
+        $("log").textContent = "O relatório aparecerá aqui.";
+    });
+
+    setChatNumber();
+    addBubble("Envie “oi” para iniciar o atendimento simulado.", "bot");
+    checkApi();
+</script>
+</body>
+</html>
