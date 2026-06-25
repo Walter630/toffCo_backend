@@ -1,1 +1,7 @@
-package com.site.toffCo.module.whatzap.dto;public record SendMessageRequest(        String number,        MessageOptions options,        TextMessage textMessage) {    public record MessageOptions(int delay) {}    public record TextMessage(String message){}}
+package com.site.toffCo.module.whatzap.dto;
+
+public record SendMessageRequest(
+        String number,
+        String text,
+        int delay
+) {}

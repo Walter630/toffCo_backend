@@ -14,6 +14,6 @@ spring:
 
 evolution:
   api:
-    url: http://localhost:8080
+    url: http://evolution-api:8080
     instance: ToffCoBot
-    key: senha_secreta_23C_ads_Te
+    key: i1JkRIzEGP+Zg5cwMXwn0AMY/mCGoJkMHv9H2vw6nXw=

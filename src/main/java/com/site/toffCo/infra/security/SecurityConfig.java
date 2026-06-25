@@ -44,7 +44,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/auth/login",
                                 "/api/auth/register",
+                                "/bot-test.html",
                                 "/webhook/whatsapp/receive",
+                                "/webhook/whatsapp/simulate",
                                 "/webhook/set/ToffCoBot",
                                 "/instance/create"
                         ).permitAll() // Rota pública

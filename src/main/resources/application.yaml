@@ -4,6 +4,9 @@ spring:
   threads:
     virtual:
       enabled: true
+  flyway:
+    baseline-on-migrate: true
+    enabled: true
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5435/toffco_db}
     username: ${DB_USER:postgres}
@@ -16,11 +19,6 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
-  rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
 
   mail:
     host: sandbox.smtp.mailtrap.io #smtp.gmail.com
@@ -33,10 +31,17 @@ spring:
           auth: true
           starttls:
             enable: true
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASS:guest}
   data:
     redis:
-      host: localhost
-      port: 6380
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6380}
+      repositories:
+        enabled: false
 
   cache:
     type: redis
@@ -49,6 +54,16 @@ server:
 
 evolution:
   api:
-    url: http://localhost:8080
-    instance: ToffCoBot
-    key: senha_secreta_23C_ads_Te
+    url: ${EVOLUTION_API_URL:http://localhost:8080}
+    instance: ${EVOLUTION_API_INSTANCE:ToffCoBot}
+    key: ${EVOLUTION_API_KEY:EVOLUTION_API_KEY}
+
+whatsapp:
+  session:
+    ttl: ${WHATSAPP_SESSION_TTL:PT24H}
+
+logging:
+  level:
+    com:
+      site:
+        toffCo: INFO

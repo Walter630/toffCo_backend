@@ -122,6 +122,7 @@ public class ExceptionHandlers extends ResponseEntityExceptionHandler {
             HttpStatusCode statusCode,
             WebRequest request) {
 
+        log.warn("Invalid request body: {}", exception.getMostSpecificCause().getMessage());
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Invalid request body format");
         return ResponseEntity.badRequest().body(problem);
     }
@@ -168,4 +169,3 @@ public class ExceptionHandlers extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(problem);
     }
 }
-

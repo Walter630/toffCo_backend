@@ -1,7 +1,35 @@
-version: '3.9'
 services:
 
   # ─── Sua aplicação ───────────────────────────────────────
+  toffco-app:
+    build: .
+    env_file:
+      - .env
+    networks:
+      - app-network
+    ports:
+      - '8081:8081'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      evolution-api:
+        condition: service_started
+    environment:
+      - DB_URL=jdbc:postgresql://postgres:5432/toffco_db
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=myuser
+      - RABBITMQ_PASS=secret
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - WHATSAPP_SESSION_TTL=PT24H
+      - EVOLUTION_API_URL=http://evolution-api:8080
+      - EVOLUTION_API_INSTANCE=ToffCoBot
+
   # ─── PostgresSQL ───────────────────────────────────────
   postgres:
     container_name: toffCo
@@ -22,7 +50,6 @@ services:
     restart: unless-stopped
     networks:
       - app-network
-
   # ─── RabbitMQ ───────────────────────────────────────
   rabbitmq:
     image: 'rabbitmq:3-management'
@@ -34,6 +61,11 @@ services:
       - '15674:15672'
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ─── Redis ───────────────────────────────────────
 
@@ -43,19 +75,42 @@ services:
     ports:
       - '6380:6379'
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     networks:
       - app-network
 
   evolution-api:
-    image: atendai/evolution-api:latest
+    image: evoapicloud/evolution-api:v2.3.7
     container_name: evolution-api
+
     ports:
       - "8080:8080"
     environment:
-      - SERVER_URL=http://localhost:8080
-      - AUTHENTICATION_API_KEY=senha_secreta_23C_ads_Te
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/toffco_db
+      - SERVER_URL=http://evolution-api:8080
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://redis:6379/0
+      - CACHE_REDIS_PREFIX_KEY=toffco
+      - CACHE_REDIS_SAVE_INSTANCES=true
+      - CACHE_LOCAL_ENABLED=false
+      - WEBHOOK_GLOBAL_ENABLED=true
+      - WEBHOOK_GLOBAL_URL=http://toffco-app:8081/webhook/whatsapp/receive
+      - WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS=false
+      - WEBHOOK_EVENTS_MESSAGES_UPSERT=true
     networks:
       - app-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   postgres_data:
