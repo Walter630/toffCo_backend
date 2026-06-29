@@ -7,6 +7,9 @@ import com.site.toffCo.module.produto.entity.Produto;
 import com.site.toffCo.module.produto.mapper.ProdutoMapper;
 import com.site.toffCo.module.produto.queryFilter.ProductQueryFilter;
 import com.site.toffCo.module.produto.repository.ProdutoRepository;
+import com.site.toffCo.module.user.entity.Role;
+import com.site.toffCo.module.user.repository.UserRepository;
+import com.site.toffCo.module.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.Specification;
@@ -23,6 +26,7 @@ public class ProdutoService {
 
     private final ProdutoRepository repository;
     private final ProdutoMapper mapper;
+    private final UserRepository userService;
 
     //============================== CREATE PRODUCT ==============================
 
@@ -73,8 +77,11 @@ public class ProdutoService {
             log.error("Produto nao encontrado");
             throw new ProductNotFound("Product not found with id " + id);
         }
-        log.info("Produto deletado: {}", id);
-        repository.deleteById(id);
+        if (userService.findByRole(Role.ADMIN)) {
+            //deleta somente se for admin
+            repository.deleteById(id);
+            log.info("Produto deletado: {}", id);
+        }
     }
 
 }

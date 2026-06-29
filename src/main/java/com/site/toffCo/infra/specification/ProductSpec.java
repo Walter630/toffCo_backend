@@ -4,6 +4,7 @@ import com.site.toffCo.module.produto.entity.Produto;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public class ProductSpec {
 
@@ -25,5 +26,15 @@ public class ProductSpec {
     public static Specification<Produto> findByPrice(BigDecimal price) {
         return (root, query, cb) ->
                 price == null ? null : cb.equal(root.get("price"), price);
+    }
+
+    public static Specification<Produto> findByType(List<String> type) {
+        return (root, query, cb) ->
+                type == null ? null : cb.equal(root.get("type").in(type), type);
+    }
+
+    public static Specification<Produto> findByTypeIgnoreCase(String type) {
+        return (root, query, cb) ->
+                type == null ? null : cb.equal(cb.lower(root.get("type")), type.toLowerCase());
     }
 }

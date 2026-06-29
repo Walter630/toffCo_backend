@@ -19,6 +19,7 @@ public record ProdutoRequestDTO(
         String image,
         @NotNull(message = "Estoque é obrigatorio")
         @PositiveOrZero(message = "Estoque nao pode ser negativo")
-        Integer estoque
+        Integer estoque,
+        String type
 ) {
 }

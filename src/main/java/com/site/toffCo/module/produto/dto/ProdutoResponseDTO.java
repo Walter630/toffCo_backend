@@ -10,5 +10,6 @@ public record ProdutoResponseDTO(
     String image,
     String categoria,
     BigDecimal price,
-    Integer estoque
+    Integer estoque,
+        String type
 ) {}

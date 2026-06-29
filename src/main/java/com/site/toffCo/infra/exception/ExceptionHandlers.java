@@ -3,6 +3,8 @@ package com.site.toffCo.infra.exception;
 import com.site.toffCo.infra.exception.carrinho.CarNotFound;
 import com.site.toffCo.infra.exception.item.ItemNotFound;
 import com.site.toffCo.infra.exception.item.QuantidadInvalid;
+import com.site.toffCo.infra.exception.payment.PaymentInvalidForm;
+import com.site.toffCo.infra.exception.payment.PaymentNotFound;
 import com.site.toffCo.infra.exception.product.CategoryNotExisting;
 import com.site.toffCo.infra.exception.product.ProductNotFound;
 import com.site.toffCo.infra.exception.user.EmailIsExisting;
@@ -88,6 +90,22 @@ public class ExceptionHandlers extends ResponseEntityExceptionHandler {
     public ResponseEntity<ProblemDetail> handleQuantidadInvalid(QuantidadInvalid exception) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Quantidad invalida");
         log.warn("Tentativa de buscar quantidad invalida");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetail);
+    }
+
+    // ============================== PAYMENT ==============================
+
+    @ExceptionHandler(PaymentNotFound.class)
+    public ResponseEntity<ProblemDetail> handlePaymentNotFound(PaymentNotFound exception) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Payment not found");
+        log.warn("Tentativa de buscar payment");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetail);
+    }
+
+    @ExceptionHandler(PaymentInvalidForm.class)
+    public ResponseEntity<ProblemDetail> handlePaymentInvalidForm(PaymentInvalidForm exception) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Payment invalid");
+        log.warn("Tentativa de informa payment");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetail);
     }
 

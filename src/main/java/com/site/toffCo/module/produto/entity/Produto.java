@@ -33,6 +33,7 @@ public class Produto {
     private String image;
     private String categoria;
     private Integer estoque;
+    private String type; //PLA, PATG, ACESSORIOS
 
     @CreationTimestamp
     private LocalDateTime createdAt;

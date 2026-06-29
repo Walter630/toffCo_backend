@@ -47,8 +47,8 @@ public class ProdutoController {
     //============================== DELETE ==============================
 
     @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        service.deleteById(id);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
