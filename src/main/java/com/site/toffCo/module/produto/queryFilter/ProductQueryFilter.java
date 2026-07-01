@@ -17,6 +17,7 @@ public class ProductQueryFilter {
     private BigDecimal price;
     private String categoria;
     private String type;
+    private String status;
 
     public Specification<Produto> buildSpecification() {
         return Specification
@@ -24,6 +25,7 @@ public class ProductQueryFilter {
                 .and(findByDescricao(description))
                 .and(findByPrice(price))
                 .and(findByType(Collections.singletonList(type)))
-                .and(findByCategory(categoria));
+                .and(findByCategory(categoria))
+                .and(findByStatus(status));
     }
 }

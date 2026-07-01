@@ -2,6 +2,7 @@ package com.site.toffCo.module.produto.service;
 
 import com.site.toffCo.module.produto.dto.ProdutoRequestDTO;
 import com.site.toffCo.module.produto.dto.ProdutoResponseDTO;
+import com.site.toffCo.module.produto.dto.Status;
 import com.site.toffCo.module.produto.entity.Produto;
 import com.site.toffCo.module.produto.mapper.ProdutoMapper;
 import com.site.toffCo.module.produto.queryFilter.ProductQueryFilter;
@@ -33,9 +34,9 @@ class ProdutoServiceTest {
 
     UUID id = UUID.randomUUID();
 
-    ProdutoResponseDTO produtoResponseDTO = new ProdutoResponseDTO(id,"filamento", "descriçao de filamento", "twste", BigDecimal.valueOf(80), 2);
+    ProdutoResponseDTO produtoResponseDTO = new ProdutoResponseDTO(id,"filamento", "descriçao de filamento", "twste","FILAMENTOS", BigDecimal.valueOf(80), 2, "", Status.ATIVO);
 
-    ProdutoRequestDTO produtodto = new ProdutoRequestDTO("filamento", "descriçao de filamento", BigDecimal.valueOf(80), "filamento", "twste", 2);
+    ProdutoRequestDTO produtodto = new ProdutoRequestDTO("filamento", "descriçao de filamento", BigDecimal.valueOf(80),"FILAMENTOS", "" , 2, "",  Status.ATIVO);
 
     @Test
     @DisplayName("Deve Criar um produto")
@@ -79,7 +80,7 @@ class ProdutoServiceTest {
         produto.setName("filamento");
         produto.setPrice(BigDecimal.valueOf(80.99));
 
-        ProdutoResponseDTO produtoResponseDTO = new ProdutoResponseDTO(id,"filamento", "descriçao de filamento", "twste", BigDecimal.valueOf(80), 2);
+        ProdutoResponseDTO produtoResponseDTO = new ProdutoResponseDTO(id,"filamento", "descriçao de filamento", "twste","FILAMENTOS", BigDecimal.valueOf(80), 2, "", Status.ATIVO);
 
         Mockito.when(produtoRepository.findAll(any(Specification.class))).thenReturn(List.of(produto));
         Mockito.when(produtoMapper.toDto(produto)).thenReturn(produtoResponseDTO);

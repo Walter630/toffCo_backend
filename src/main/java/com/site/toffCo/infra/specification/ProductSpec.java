@@ -37,4 +37,9 @@ public class ProductSpec {
         return (root, query, cb) ->
                 type == null ? null : cb.equal(cb.lower(root.get("type")), type.toLowerCase());
     }
+
+    public static Specification<Produto> findByStatus(String status) {
+        return (root, query, cb) ->
+                status == null ? null : cb.equal(root.get("status"), status);
+    }
 }

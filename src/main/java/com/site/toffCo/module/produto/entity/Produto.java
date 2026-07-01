@@ -1,5 +1,6 @@
 package com.site.toffCo.module.produto.entity;
 
+import com.site.toffCo.module.produto.dto.Status;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -34,6 +35,9 @@ public class Produto {
     private String categoria;
     private Integer estoque;
     private String type; //PLA, PATG, ACESSORIOS
+
+    @Enumerated(EnumType.STRING)
+    private Status status;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
