@@ -48,7 +48,10 @@ public class SecurityConfig {
                                 "/webhook/whatsapp/receive",
                                 "/webhook/whatsapp/simulate",
                                 "/webhook/set/ToffCoBot",
-                                "/instance/create"
+                                "/instance/create",
+                                "/api/produtos",
+                                "/api/produtos/{id}",
+                                "/**"
                         ).permitAll() // Rota pública
                         .anyRequest().authenticated() // Bloqueia o resto
                 )
