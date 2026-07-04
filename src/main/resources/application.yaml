@@ -21,10 +21,10 @@ spring:
     show-sql: true
 
   mail:
-    host: sandbox.smtp.mailtrap.io #smtp.gmail.com
-    port: 587
-    username: d2fa3ae3acd9ab #walterro465@gmail.com
-    password: 01a5d89028dc2f
+    host: ${MAIL_HOST:sandbox.smtp.mailtrap.io}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USER}
+    password: ${MAIL_PASS}
     properties:
       mail:
         smtp:
@@ -33,9 +33,9 @@ spring:
             enable: true
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USER:guest}
-    password: ${RABBITMQ_PASS:guest}
+    port: ${RABBITMQ_PORT:5674}
+    username: ${RABBITMQ_USER:myuser}
+    password: ${RABBITMQ_PASS:secret}
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -47,7 +47,7 @@ spring:
     type: redis
 
 jwt:
-  secret: ${JWT_SECRET:suaSenha}
+  secret: ${JWT_SECRET:chave_secreta_local_ssh}
 
 server:
   port: 8081
@@ -56,7 +56,7 @@ evolution:
   api:
     url: ${EVOLUTION_API_URL:http://localhost:8080}
     instance: ${EVOLUTION_API_INSTANCE:ToffCoBot}
-    key: ${EVOLUTION_API_KEY:EVOLUTION_API_KEY}
+    key: ${EVOLUTION_API_KEY:KeyExemplo_teste_naoVali_da}
 
 whatsapp:
   session:
