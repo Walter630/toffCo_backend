@@ -16,12 +16,12 @@ public abstract class UserMapper {
     protected PasswordEncoder passwordEncoder;
 
     @Mapping(target = "password", expression = "java(passwordEncoder.encode(requestDTO.password()))")
-    @Mapping(target = "id", ignore = true) // Ignora o ID (o banco que gera)
+    //@Mapping(target = "id", ignore = true) // Ignora o ID (o banco que gera)
     @Mapping(target = "createTime", ignore = true) // Ignora campos de auditoria
     @Mapping(target = "updateTime", ignore = true) // Ignora campos de auditoria
     @Mapping(target = "token", ignore = true)
     public abstract User toEntity(UserRequestDTO requestDTO);
-
+    @Mapping(source = "id", target = "userId")
     public abstract UserResponseDTO toDto(User entity);
     public abstract List<UserResponseDTO> toDtoList(List<User> entityList);
 }
