@@ -3,6 +3,7 @@ package com.site.toffCo.infra.security;
 import com.site.toffCo.module.user.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -42,17 +43,25 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/auth/login",
-                                "/api/auth/register",
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/auth/login",
+                                "/api/auth/register"
+                        ).permitAll()
+
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/produtos",
+                                "/api/produtos/*"
+                        ).permitAll()
+
+                        .requestMatchers(
                                 "/bot-test.html",
                                 "/webhook/whatsapp/receive",
                                 "/webhook/whatsapp/simulate",
                                 "/webhook/set/ToffCoBot",
-                                "/instance/create",
-                                "/api/produtos",
-                                "/api/produtos/{id}",
-                                "/**"
-                        ).permitAll() // Rota pública
+                                "/instance/create"
+                        ).permitAll()
                         .anyRequest().authenticated() // Bloqueia o resto
                 )
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
@@ -90,7 +99,12 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         // Em produção, você trocaria o "*" pelas URLs oficiais do seu frontend
-        configuration.setAllowedOrigins(List.of("https://toffbr.com.br", "https://www.toffbr.com.br"));
+        configuration.setAllowedOrigins(List.of(
+                "https://toffbr.com.br",
+                "https://www.toffbr.com.br",
+                "http://localhost:5173",
+                "http://127.0.0.1:5173"
+        ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Cache-Control"));
 
