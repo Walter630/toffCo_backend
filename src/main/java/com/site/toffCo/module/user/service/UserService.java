@@ -51,13 +51,15 @@ public class UserService {
             throw new EmailIsExisting("E-mail já cadastrado!"); // Ou seu ExceptionHandler personalizado
         }
         var userCriado = mapper.toEntity(userRequestDTO);
+        log.info("Criado: {}", userCriado);
+        log.info("id: {}", userCriado.getId());
         // 2. Define o cargo padrão automaticamente ANTES de salvar no banco.
         // ATENÇÃO: Troque 'Role.USER' pelo nome exato da sua classe Enum e do valor.
         // (ex: UserRole.CLIENTE, RoleEnum.DEFAULT_USER, et
         userCriado.setRole(Role.USER);
         var userSave = this.repository.save(userCriado);
         log.info("User criado: {}", userCriado);
-        registerProducer.send(new RegisterEvent(userSave.getEmail(), userSave.getName()));
+        registerProducer.send(new RegisterEvent(userSave.getEmail(), userSave.getUsername()));
         return mapper.toDto(userSave);
     }
 

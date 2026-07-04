@@ -5,7 +5,10 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import java.util.UUID;
+
 public record UserRequestDTO(
+        UUID userId,
         @NotBlank(message = "Email do usuário é obrigatório")
         @Email(message = "O email deve ter um formato válido")
         String email,
@@ -17,7 +20,7 @@ public record UserRequestDTO(
         @NotBlank(message = "Numero de telefone é obrigatorio")
         String phone,
 
-        String name,
+        String username,
 
         Role role // Mudei para singular, já que geralmente é um Role por vez, ou Set<Role> se forem vários
 ) {

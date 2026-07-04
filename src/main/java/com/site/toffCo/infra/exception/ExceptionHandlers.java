@@ -1,5 +1,6 @@
 package com.site.toffCo.infra.exception;
 
+import com.site.toffCo.infra.exception.carrinho.CarIsEmpty;
 import com.site.toffCo.infra.exception.carrinho.CarNotFound;
 import com.site.toffCo.infra.exception.item.ItemNotFound;
 import com.site.toffCo.infra.exception.item.QuantidadInvalid;
@@ -74,6 +75,13 @@ public class ExceptionHandlers extends ResponseEntityExceptionHandler {
     public  ResponseEntity<ProblemDetail> handleCarNotFound(CarNotFound exception) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Car not found");
         log.warn("Tentativa de buscar car");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    @ExceptionHandler(CarIsEmpty.class)
+    public ResponseEntity<ProblemDetail> handleCarIsEmpty(CarIsEmpty exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Car is empty");
+        log.warn("Carrinho esta vazio");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
 

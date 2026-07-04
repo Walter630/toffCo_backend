@@ -1,9 +1,9 @@
 package com.site.toffCo.module.user.dto;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record UserResponseDTO(
+        UUID userId,
         String email,
-        String name
+        String username
 ) {}
