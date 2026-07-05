@@ -6,6 +6,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
@@ -33,11 +34,16 @@ public class WhatsappSessionStore {
         }
 
         try {
+            String lastMessageId = optional(values, "lastMessageId");
+            String lastBotReplyAtRaw = optional(values, "lastBotReplyAt");
+            Instant lastBotReplyAt = lastBotReplyAtRaw == null ? null : Instant.parse(lastBotReplyAtRaw);
             return Optional.of(new WhatsappSession(
                     whatsappId,
                     ChatState.valueOf(required(values, "currentState")),
                     Integer.parseInt(required(values, "currentPage")),
-                    Boolean.parseBoolean(required(values, "humanAssigned"))
+                    Boolean.parseBoolean(required(values, "humanAssigned")),
+                    lastMessageId,
+                    lastBotReplyAt
             ));
         } catch (IllegalArgumentException exception) {
             delete(whatsappId);
@@ -48,14 +54,21 @@ public class WhatsappSessionStore {
     public void save(WhatsappSession session) {
         String key = key(session.getWhatsappId());
 
-        redisTemplate.opsForHash().putAll(key, Map.of(
+        Map<String, String> fields = new java.util.HashMap<>(Map.of(
                 "currentState", session.getCurrentState().name(),
                 "currentPage", Integer.toString(session.getCurrentPage()),
                 "humanAssigned", Boolean.toString(session.isHumanAssigned())
         ));
+
+        if (session.getLastMessageId() != null) {
+            fields.put("lastMessageId", session.getLastMessageId());
+        }
+        if (session.getLastBotReplyAt() != null) {
+            fields.put("lastBotReplyAt", session.getLastBotReplyAt().toString());
+        }
+        redisTemplate.opsForHash().putAll(key, fields);
         redisTemplate.expire(key, sessionTtl);
     }
-
     public void delete(String whatsappId) {
         redisTemplate.delete(key(whatsappId));
     }
@@ -70,5 +83,10 @@ public class WhatsappSessionStore {
             throw new IllegalArgumentException("Campo ausente na sessão Redis: " + field);
         }
         return value.toString();
+    }
+
+    private String optional(Map<Object, Object> values, String field) {
+        Object value = values.get(field);
+        return value == null ? null : value.toString();
     }
 }
