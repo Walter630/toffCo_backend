@@ -43,7 +43,8 @@ public class WhatsappSessionStore {
                     Integer.parseInt(required(values, "currentPage")),
                     Boolean.parseBoolean(required(values, "humanAssigned")),
                     lastMessageId,
-                    lastBotReplyAt
+                    lastBotReplyAt,
+                    optional(values, "attendanceSubject")
             ));
         } catch (IllegalArgumentException exception) {
             delete(whatsappId);
@@ -57,7 +58,8 @@ public class WhatsappSessionStore {
         Map<String, String> fields = new java.util.HashMap<>(Map.of(
                 "currentState", session.getCurrentState().name(),
                 "currentPage", Integer.toString(session.getCurrentPage()),
-                "humanAssigned", Boolean.toString(session.isHumanAssigned())
+                "humanAssigned", Boolean.toString(session.isHumanAssigned()),
+                "attendanceSubject", session.getAttendanceSubject() == null ? "" : session.getAttendanceSubject()
         ));
 
         if (session.getLastMessageId() != null) {
@@ -87,6 +89,6 @@ public class WhatsappSessionStore {
 
     private String optional(Map<Object, Object> values, String field) {
         Object value = values.get(field);
-        return value == null ? null : value.toString();
+        return value == null || value.toString().isBlank() ? null : value.toString();
     }
 }

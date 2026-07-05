@@ -18,8 +18,9 @@ public class WhatsappSession {
     private boolean humanAssigned;
     private String lastMessageId;
     private Instant lastBotReplyAt;
+    private String AttendanceSubject;
 
     public static WhatsappSession newSession(String whatsappId) {
-        return new WhatsappSession(whatsappId, ChatState.MENU_PRINCIPAL, 1, false, null, null);
+        return new WhatsappSession(whatsappId, ChatState.MENU_PRINCIPAL, 1, false, null, null, null);
     }
 }
