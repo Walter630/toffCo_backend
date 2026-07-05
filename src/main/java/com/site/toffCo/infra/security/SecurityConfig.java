@@ -101,6 +101,7 @@ public class SecurityConfig {
         // Em produção, você trocaria o "*" pelas URLs oficiais do seu frontend
         configuration.setAllowedOrigins(List.of(
                 "https://toffbr.com.br",
+                "https://api.toffbr.com.br",
                 "https://www.toffbr.com.br",
                 "http://localhost:5173",
                 "http://127.0.0.1:5173"
