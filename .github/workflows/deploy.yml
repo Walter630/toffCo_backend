@@ -15,6 +15,6 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            cd ~/toffCo-backend
+            cd ~/toffbr-backend
             git pull origin master
             docker compose up -d --build

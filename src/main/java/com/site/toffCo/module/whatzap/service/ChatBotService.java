@@ -169,7 +169,7 @@ public class ChatBotService {
 
     private void notificarGerente(String whatsappId) {
         log.info("Notificando gerente sobre atendimento do WhatsApp {}", whatsappId);
-        String messageGerente = "\uD83D\uDD14 *Novo pedido de atendimento!*\\nCliente: " + whatsappId;
+        String messageGerente = "\uD83D\uDD14 *Novo pedido de atendimento!*\n \n Cliente: " + whatsappId;
         SendMessageRequest request = new SendMessageRequest(
                 "553484114981",
                 messageGerente,
