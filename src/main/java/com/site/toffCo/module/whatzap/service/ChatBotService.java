@@ -181,44 +181,13 @@ public class ChatBotService {
     }
 
     private String handleCatalogo(WhatsappSession session, String text, String catalogo) {
-        if ("7".equals(text)) {
+        if ("0".equals(text)) {
             session.setCurrentState(MENU_PRINCIPAL);
             session.setCurrentPage(1);
             return BotMessages.BACK_TO_MENU;
         }
-        return "Digite 7 para voltar ao catalogo.";
+        return BotMessages.INVALID_OPTION + "\n\n" + BotMessages.ATTENDANCE_SUBJECT_MENU;
     }
-
-    /*private String buscarProdutosPaginados(String categoria, WhatsappSession session) {
-        PageRequest pageRequest = PageRequest.of(
-                session.getCurrentPage() - 1,
-                CATALOG_PAGE_SIZE,
-                Sort.by("name")
-        );
-        Page<Produto> paginaProduto = produtoRepository.findByCategoriaAndAtivoTrue(categoria, pageRequest);
-
-        if (paginaProduto.isEmpty()) {
-            if (session.getCurrentPage() > 1) {
-                session.setCurrentPage(1);
-                return buscarProdutosPaginados(categoria, session);
-            }
-            session.setCurrentPage(1);
-            session.setCurrentState(MENU_PRINCIPAL);
-
-            return "Nenhum produto encontrado nesta categoria. \n\n" +
-                    BotMessages.formatDynamicCatalog(categoria,
-                            paginaProduto.getContent(),
-                            session.getCurrentPage(),
-                            paginaProduto.hasNext());
-        }
-
-        return BotMessages.formatDynamicCatalog(
-                categoria,
-                paginaProduto.getContent(),
-                session.getCurrentPage(),
-                paginaProduto.hasNext()
-        );
-    }*/
 
     private void notificarGerente(String whatsappId, String subject, String message) {
         log.info("Notificando gerente sobre atendimento do WhatsApp {}", whatsappId);
