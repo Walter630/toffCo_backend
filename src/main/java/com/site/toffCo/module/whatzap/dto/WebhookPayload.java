@@ -9,7 +9,7 @@ public record WebhookPayload(WebhookData data) {
     public record WebhookData(WebhookKey key, WebhookMessage message) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record WebhookKey(String remoteJid, Boolean fromMe) {}
+    public record WebhookKey(String remoteJid, Boolean fromMe, String id) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record WebhookMessage(

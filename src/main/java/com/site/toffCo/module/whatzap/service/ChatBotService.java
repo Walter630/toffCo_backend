@@ -1,6 +1,5 @@
 package com.site.toffCo.module.whatzap.service;
 
-import com.site.toffCo.module.produto.entity.Produto;
 import com.site.toffCo.module.produto.repository.ProdutoRepository;
 import com.site.toffCo.module.whatzap.dto.ChatState;
 import com.site.toffCo.module.whatzap.dto.SendMessageRequest;
@@ -8,10 +7,10 @@ import com.site.toffCo.module.whatzap.session.WhatsappSession;
 import com.site.toffCo.module.whatzap.session.WhatsappSessionStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.time.Instant;
 
 import static com.site.toffCo.module.whatzap.dto.ChatState.*;
 
@@ -21,6 +20,7 @@ import static com.site.toffCo.module.whatzap.dto.ChatState.*;
 public class ChatBotService {
 
     private static final int CATALOG_PAGE_SIZE = 3;
+    private static final long BOT_ECHO_WINDOW_SECONDS = 5;
 
     private final WhatsappSessionStore sessionStore;
     private final WhatzapService evolutionApiClient;
@@ -34,19 +34,45 @@ public class ChatBotService {
         );
 
         evolutionApiClient.sendMessage(request);
+
+        sessionStore.findByWhatsappId(numberClient).ifPresent(session -> {
+            session.setLastBotReplyAt(Instant.now());
+            sessionStore.save(session);
+        });
     }
 
-    public String processIncomingMessage(String whatsappId, String messageText) {
-        return processIncomingMessage(whatsappId, messageText, true);
+    public void handlePossibleHumanIntervention(String whatsappId) {
+        sessionStore.findByWhatsappId(whatsappId).ifPresent(session -> {
+            Instant lastReply = session.getLastBotReplyAt();
+            boolean isEchoFromBot = lastReply != null
+                    && Duration.between(lastReply, Instant.now()).getSeconds() <= BOT_ECHO_WINDOW_SECONDS;
+
+            if (!isEchoFromBot && !session.isHumanAssigned()) {
+                session.setHumanAssigned(true);
+                session.setCurrentState(ChatState.ATENDIMENTO_HUMANO);
+                sessionStore.save(session);
+                log.info("Atendente assumiu manualmente a conversa com {}", whatsappId);
+            }
+        });
     }
 
-    public String simulateIncomingMessage(String whatsappId, String messageText) {
-        return processIncomingMessage(whatsappId, messageText, false);
+    public void processIncomingMessage(String whatsappId, String messageText, String messageId) {
+        processIncomingMessage(whatsappId, messageText, messageId, true);
     }
 
-    private String processIncomingMessage(String whatsappId, String messageText, boolean sendToWhatsapp) {
+    public String simulateIncomingMessage(String whatsappId, String messageText, String messageId) {
+        return processIncomingMessage(whatsappId, messageText, messageId, false);
+    }
+
+    private String processIncomingMessage(String whatsappId, String messageText, String messageId, boolean sendToWhatsapp) {
         WhatsappSession session = sessionStore.findByWhatsappId(whatsappId)
                 .orElseGet(() -> WhatsappSession.newSession(whatsappId));
+
+        if (messageId != null && messageId.equals(session.getLastMessageId())) {
+            return null;
+        }
+
+        session.setLastMessageId(messageId);
 
         if (session.isHumanAssigned()) {
             sessionStore.save(session);
@@ -57,6 +83,9 @@ public class ChatBotService {
             case MENU_PRINCIPAL -> handleMenuPrincipal(session, messageText);
             case CATALOGO -> handleCatalogo(session, messageText, "PRODUTOS");
             case FILAMENTO -> handleCatalogo(session, messageText, "FILAMENTOS");
+            case MAQUINAS -> handleCatalogo(session, messageText, "MAQUINAS");
+            case ACESSORIOS ->  handleCatalogo(session, messageText, "ACESSORIOS");
+            case IMPRESSORAS -> handleCatalogo(session, messageText, "IMPRESSORAS");
             case ATENDIMENTO_HUMANO -> null;
         };
 
@@ -70,54 +99,44 @@ public class ChatBotService {
     private String handleMenuPrincipal(WhatsappSession session, String text) {
         if ("1".equals(text)) {
             session.setCurrentState(FILAMENTO);
-            session.setCurrentPage(1);
-            return buscarProdutosPaginados("FILAMENTOS", session);
-        } else if ("3".equals(text)) {
+            return BotMessages.getCatalogLink("FILAMENTOS");
+        }
+        else if ("2".equals(text)) {
+            session.setCurrentState(CATALOGO);
+            return BotMessages.getCatalogLink("PRODUTOS");
+        }
+        else if ("3".equals(text)) {
+            session.setCurrentState(MAQUINAS);
+            return BotMessages.getCatalogLink("MAQUINAS");
+        }
+        else if ("4".equals(text)) {
+            session.setCurrentState(ACESSORIOS);
+            return BotMessages.getCatalogLink("ACESSORIOS");
+        }
+        else if ("5".equals(text)) {
+            session.setCurrentState(IMPRESSORAS);
+            return BotMessages.getCatalogLink("IMPRESSORAS");
+        }
+        else if ("6".equals(text)) {
             session.setHumanAssigned(true);
             session.setCurrentState(ChatState.ATENDIMENTO_HUMANO);
             notificarGerente(session.getWhatsappId());
             return BotMessages.HUMAN_ATTENDANCE;
-        } else if ("2".equals(text)) {
-            session.setCurrentState(CATALOGO);
-            session.setCurrentPage(1);
-            return buscarProdutosPaginados("PRODUTOS", session);
         }
 
         return BotMessages.WELCOME_MENU;
     }
 
-    private String handleCatalogo(WhatsappSession session, String text, String categoria) {
-        if ("5".equals(text)) {
+    private String handleCatalogo(WhatsappSession session, String text, String catalogo) {
+        if ("7".equals(text)) {
             session.setCurrentState(MENU_PRINCIPAL);
             session.setCurrentPage(1);
             return BotMessages.BACK_TO_MENU;
         }
-
-        if ("4".equals(text)) {
-            session.setCurrentPage(session.getCurrentPage() + 1);
-            return buscarProdutosPaginados(categoria, session);
-        }
-
-        try {
-            int index = Integer.parseInt(text) - 1;
-            PageRequest page = PageRequest.of(
-                    session.getCurrentPage() - 1,
-                    CATALOG_PAGE_SIZE,
-                    Sort.by("name")
-            );
-            Page<Produto> pagina = produtoRepository.findByCategoriaAndAtivoTrue(categoria, page);
-
-            if (index >= 0 && index < pagina.getContent().size()) {
-                Produto produto = pagina.getContent().get(index);
-                return BotMessages.getProductLink(produto.getName(), session.getCurrentPage());
-            }
-        } catch (NumberFormatException _) {
-            return "Opção invalida. Digite o numero de item ou 5 para voltar.";
-        }
-        return "Opção invalida. Use 5 para voltar";
+        return "Digite 7 para voltar ao catalogo.";
     }
 
-    private String buscarProdutosPaginados(String categoria, WhatsappSession session) {
+    /*private String buscarProdutosPaginados(String categoria, WhatsappSession session) {
         PageRequest pageRequest = PageRequest.of(
                 session.getCurrentPage() - 1,
                 CATALOG_PAGE_SIZE,
@@ -130,7 +149,14 @@ public class ChatBotService {
                 session.setCurrentPage(1);
                 return buscarProdutosPaginados(categoria, session);
             }
-            return "Nenhum produto encontrado nesta categoria.";
+            session.setCurrentPage(1);
+            session.setCurrentState(MENU_PRINCIPAL);
+
+            return "Nenhum produto encontrado nesta categoria. \n\n" +
+                    BotMessages.formatDynamicCatalog(categoria,
+                            paginaProduto.getContent(),
+                            session.getCurrentPage(),
+                            paginaProduto.hasNext());
         }
 
         return BotMessages.formatDynamicCatalog(
@@ -139,13 +165,13 @@ public class ChatBotService {
                 session.getCurrentPage(),
                 paginaProduto.hasNext()
         );
-    }
+    }*/
 
     private void notificarGerente(String whatsappId) {
         log.info("Notificando gerente sobre atendimento do WhatsApp {}", whatsappId);
         String messageGerente = "\uD83D\uDD14 *Novo pedido de atendimento!*\\nCliente: " + whatsappId;
         SendMessageRequest request = new SendMessageRequest(
-                "5588921498062",
+                "553484114981",
                 messageGerente,
                 2200
         );

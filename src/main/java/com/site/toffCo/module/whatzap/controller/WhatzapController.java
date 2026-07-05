@@ -13,9 +13,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class WhatzapController {
 
-
     private final ChatBotService chatBotService;
-
 
     @PostMapping("/receive")
     public ResponseEntity<Void> receiveMessage(@RequestBody WebhookPayload payload) {
@@ -35,8 +33,13 @@ public class WhatzapController {
         }
 
         String number = remoteJid.replace("@s.whatsapp.net", "");
+        if (Boolean.TRUE.equals(payload.data().key().fromMe())) {
+            chatBotService.handlePossibleHumanIntervention(number);
+            return ResponseEntity.ok().build();
+        }
 
-        chatBotService.processIncomingMessage(number, text);
+        String messageId = payload.data().key().id();
+        chatBotService.processIncomingMessage(number, text, messageId);
 
         return ResponseEntity.ok().build();
     }
@@ -50,7 +53,7 @@ public class WhatzapController {
             ));
         }
 
-        String response = chatBotService.simulateIncomingMessage(request.number(), request.message().trim());
+        String response = chatBotService.simulateIncomingMessage(request.number(), request.message().trim(), request.messageId);
 
         if (response == null) {
             return ResponseEntity.ok(Map.of(
@@ -65,5 +68,5 @@ public class WhatzapController {
         ));
     }
 
-    public record SimulationRequest(String number, String message) {}
+    public record SimulationRequest(String number, String message, String messageId) {}
 }
