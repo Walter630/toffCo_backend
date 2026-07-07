@@ -17,11 +17,6 @@ import java.util.UUID;
 
 @Repository
 public interface ProdutoRepository extends JpaRepository<Produto, UUID>, JpaSpecificationExecutor<Produto> {
-    Optional<Produto> findByDescription(@Param("descricao") String description);
-    Optional<Produto> findByCategoria(@Param("categoria") String categoria);
-    Optional<Produto> findByPrice(@Param("price") BigDecimal price);
-    Page<Produto> findByCategoriaAndAtivoTrue(String categoria, Pageable pageable);
-
     @Lock(LockModeType.PESSIMISTIC_WRITE) //trava o item do estoque
     @Query("SELECT p FROM Produto p WHERE p.id = :id")
     Optional<Produto> findByIdForUpdate(@Param("id") UUID id);

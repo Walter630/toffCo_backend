@@ -30,7 +30,7 @@ public class ProductSpec {
 
     public static Specification<Produto> findByType(List<String> type) {
         return (root, query, cb) ->
-                type == null ? null : cb.equal(root.get("type").in(type), type);
+                type == null ? null : root.get("type").in(type);
     }
 
     public static Specification<Produto> findByTypeIgnoreCase(String type) {

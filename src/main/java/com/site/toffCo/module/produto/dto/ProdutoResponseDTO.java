@@ -12,5 +12,6 @@ public record ProdutoResponseDTO(
         BigDecimal price,
         Integer estoque,
         String type,
-        Status status
+        Status status,
+        String codigoBarras
 ) {}

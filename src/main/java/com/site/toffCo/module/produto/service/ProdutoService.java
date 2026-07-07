@@ -1,6 +1,8 @@
 package com.site.toffCo.module.produto.service;
 
+import com.google.zxing.WriterException;
 import com.site.toffCo.infra.exception.product.ProductNotFound;
+import com.site.toffCo.module.codigoBarras.service.CodigoBarrasServices;
 import com.site.toffCo.module.produto.dto.ProdutoRequestDTO;
 import com.site.toffCo.module.produto.dto.ProdutoResponseDTO;
 import com.site.toffCo.module.produto.entity.Produto;
@@ -16,6 +18,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,13 +30,26 @@ public class ProdutoService {
     private final ProdutoRepository repository;
     private final ProdutoMapper mapper;
     private final UserRepository userService;
+    private final CodigoBarrasServices codigoBarrasServices;
 
     //============================== CREATE PRODUCT ==============================
 
     @Transactional
     public ProdutoResponseDTO create(ProdutoRequestDTO produtoDTO) {
         Produto produto = mapper.toEntity(produtoDTO);
-        log.info("Produto: {}", produto);
+        produto = repository.save(produto);
+        log.info("Produto criado com id={}", produto.getId());
+
+        String codigo = codigoBarrasServices.gerarCodigoEAN13(produto.getId());
+        produto.setCodigoBarras(codigo);
+        log.info("Codigo de barras gerado: {}", codigo);
+
+        try{
+            produto.setImagemCodigoBarras(codigoBarrasServices.gerarImagemCodigoBarras(codigo));
+        } catch (WriterException | IOException e) {
+            throw new RuntimeException("Erro ao gerar imagem do codigo de barras", e);
+        }
+
         return mapper.toDto(repository.save(produto));
     }
 

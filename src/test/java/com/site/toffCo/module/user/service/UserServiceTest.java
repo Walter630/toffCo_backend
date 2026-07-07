@@ -17,6 +17,9 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
+
+import java.util.UUID;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -44,12 +47,12 @@ class UserServiceTest {
     @DisplayName("Criando user no sistema")
     void createUser() {
         //preparar o cenario
-        UserRequestDTO dto = new UserRequestDTO("walter@gmail.com", "sajdansnd", "888888888", "nome", Role.USER);
+        UserRequestDTO dto = new UserRequestDTO(UUID.randomUUID(), "walter@gmail.com", "sajdansnd", "888888888", "nome", Role.USER);
         User user = new User();
         user.setEmail("walter@gmail.com");
         user.setPassword("sajdansnd");
 
-        UserResponseDTO userResponseDTO = new UserResponseDTO("walter@gmail.com", "nome");
+        UserResponseDTO userResponseDTO = new UserResponseDTO(UUID.randomUUID(),"walter@gmail.com", "nome");
 
         Mockito.when(userMapper.toEntity(dto)).thenReturn(user);
         Mockito.when(userRepository.save(user)).thenReturn(user);
@@ -61,7 +64,7 @@ class UserServiceTest {
         //verifica se ta tudo certo
         assertNotNull(result);
         assertEquals("walter@gmail.com", result.email());
-        assertEquals("nome", result.name());
+        assertEquals("nome", result.username());
 
         Mockito.verify(userMapper).toEntity(dto);
         Mockito.verify(userRepository, Mockito.times(1)).save(user);

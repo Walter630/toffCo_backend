@@ -36,6 +36,12 @@ public class Produto {
     private Integer estoque;
     private String type; //PLA, PATG, ACESSORIOS
 
+    @Column(unique = true)
+    private String codigoBarras;
+
+    @Lob
+    private byte[] imagemCodigoBarras;
+
     @Enumerated(EnumType.STRING)
     private Status status;
 

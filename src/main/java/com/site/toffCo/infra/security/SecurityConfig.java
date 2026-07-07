@@ -31,7 +31,7 @@ public class SecurityConfig {
     private final SecurityFilter securityFilter;
     private final UserRepository userRepository;
 
-    public SecurityConfig(SecurityFilter securityFilter,  UserRepository userRepository ) {
+    public SecurityConfig(SecurityFilter securityFilter, UserRepository userRepository) {
         this.securityFilter = securityFilter;
         this.userRepository = userRepository;
     }
@@ -53,6 +53,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/produtos",
                                 "/api/produtos/*"
+                        ).permitAll()
+
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/pagamentoitems/FormaPayment"
                         ).permitAll()
 
                         .requestMatchers(
