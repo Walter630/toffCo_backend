@@ -22,6 +22,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Slf4j
@@ -51,8 +52,8 @@ public class CarrinhoService {
 
     // guarda automaticamente no redis
     @Transactional(readOnly = true)
-    @Cacheable(value = "carrinhos", key = "@authUtil.userLogado().id")
-    public CarrinhoResponseDTO findByCar(String userId) {
+    @Cacheable(value = "carrinhos", key = "@authUtil.getUserLogado().id")
+    public CarrinhoResponseDTO findByCar() {
         User user = authUtil.getUserLogado();
         Carrinho carrinho = repository.findByUser_Id(user.getId())
                 .orElseThrow(() -> new CarNotFound("Carrinho nao encontrado"));
@@ -99,6 +100,12 @@ public class CarrinhoService {
 
         item.setQuantidade(item.getQuantidade() + quantidade);
         item.setPrice(produto.getPrice());
+        // 🔥 ADICIONE ISSO: Recalcula o valor total do carrinho somando os itens ativos
+        BigDecimal total = carrinho.getItens().stream()
+                .map(i -> i.getPrice().multiply(BigDecimal.valueOf(i.getQuantidade())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        carrinho.setValorTotal(total);
+
         log.info("Item adicionado ao carrinho: usuario={}, produto={}, quantidade={}",
                 carrinho.getUser().getId(), produtoId, quantidade);
         return mapper.toDto(repository.save(carrinho));
@@ -107,7 +114,7 @@ public class CarrinhoService {
     //============================== REMOVE ==============================
 
     @Transactional
-    @CacheEvict(value = "carrinhos", key = "@authUtil.userLogado().id")
+    @CacheEvict(value = "carrinhos", key = "@authUtil.getUserLogado().id")
     public void removerItem(UUID itemId) {
         User usuario = authUtil.getUserLogado();
         Carrinho carrinho = repository.findByUser_Id(usuario.getId())

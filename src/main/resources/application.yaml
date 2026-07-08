@@ -67,3 +67,8 @@ logging:
     com:
       site:
         toffCo: INFO
+    org:
+      hibernate:
+        sql: DEBUG
+        jdbc:
+          bind: TRACE

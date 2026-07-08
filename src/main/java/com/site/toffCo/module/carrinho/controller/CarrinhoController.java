@@ -19,7 +19,7 @@ public class CarrinhoController {
 
     @GetMapping
     public ResponseEntity<CarrinhoResponseDTO> myCar() {
-        return ResponseEntity.ok(service.findByCar(null));
+        return ResponseEntity.ok(service.findByCar());
     }
 
     //============================== ADD_ITEM_CAR ==============================

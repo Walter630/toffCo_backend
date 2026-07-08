@@ -31,7 +31,7 @@ public class Carrinho {
     @Column(precision =  19, scale = 2)
     private BigDecimal valorTotal;
 
-    @OneToMany(mappedBy = "carrinho", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "carrinho", cascade = CascadeType.ALL, orphanRemoval = true, fetch =  FetchType.EAGER)
     private List<ItemCarrinho> itens = new ArrayList<>();
     @CreationTimestamp
     private LocalDateTime createdAt;

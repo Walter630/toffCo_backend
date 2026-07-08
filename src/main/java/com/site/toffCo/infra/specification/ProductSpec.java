@@ -13,9 +13,9 @@ public class ProductSpec {
                 name == null ? null : cb.like(cb.lower(root.get("name")), "%" + name.toLowerCase() + "%");
     }
 
-    public static Specification<Produto> findByDescricao(String descricao) {
+    public static Specification<Produto> findByDescricao(String description) {
         return (root, query, cb) ->
-                descricao == null ? null : cb.like(cb.lower(root.get("descricao")), "%" + descricao.toLowerCase() + "%");
+                description == null ? null : cb.like(cb.lower(root.get("description")), "%" + description.toLowerCase() + "%");
     }
 
     public static Specification<Produto> findByCategory(String categoria) {
@@ -30,7 +30,9 @@ public class ProductSpec {
 
     public static Specification<Produto> findByType(List<String> type) {
         return (root, query, cb) ->
-                type == null ? null : root.get("type").in(type);
+                (type == null || type.isEmpty() || type.contains(null))
+                        ? null
+                        : root.get("type").in(type);
     }
 
     public static Specification<Produto> findByTypeIgnoreCase(String type) {

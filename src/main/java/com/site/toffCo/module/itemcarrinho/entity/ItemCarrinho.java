@@ -18,6 +18,8 @@ public class ItemCarrinho {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+    private String name;
+    private String description;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "carrinho_id", referencedColumnName = "id")

@@ -69,11 +69,14 @@ public class ProdutoService {
     @Transactional(readOnly = true)
     public List<ProdutoResponseDTO> findAll(ProductQueryFilter filter) {
         Specification<Produto> specification = filter.buildSpecification();
-        log.info("Produtos filtrados: {}", specification);
-        return repository.findAll(specification)
-                .stream()
-                .map(mapper::toDto)
-                .toList();
+        List<Produto> produtos = repository.findAll(specification);
+        List<ProdutoResponseDTO> dtos = mapper.toDto(produtos);
+        System.out.println("Qtd de DTOs mapeados para JSON: " + dtos.size());
+        if (!dtos.isEmpty()) {
+            System.out.println("Primeiro DTO: " + dtos.get(0).name());
+        }
+        log.info("Produtos encontrados no repository: {}", produtos.size());
+        return dtos;
     }
 
     //============================== FINDBYID ==============================
