@@ -23,6 +23,11 @@ public class PagamentoPixStrategy implements PagamentoStrategy{
         return new ResponseDTO("PÌX", "AGUARDANDO PAGAMENTO", qrCodeBase44, copiaECola, null);
     }
 
+    @Override
+    public String getTipoPagamento() {
+        return "PIX";
+    }
+
     public String gerarQrCodeBase64(String conteudo) {
         try {
             QRCodeWriter qrCodeWriter = new QRCodeWriter();

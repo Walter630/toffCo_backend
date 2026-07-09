@@ -24,6 +24,11 @@ public class MaquininhaPagamentoStrategy implements PagamentoStrategy {
         }
     }
 
+    @Override
+    public String getTipoPagamento() {
+        return "CARTAO_MAQUININHA";
+    }
+
 
     public boolean dispararQuandoAprovarMaquininha(BigDecimal valor, UUID pedidoId) {
         return true;

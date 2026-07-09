@@ -13,4 +13,9 @@ public class MoneyPaymantStrategy implements PagamentoStrategy{
     public ResponseDTO processar(BigDecimal valor, UUID pedidoId) {
         return new ResponseDTO("MONEY", "PAGO", null, null, null);
     }
+
+    @Override
+    public String getTipoPagamento() {
+        return "MONEY";
+    }
 }

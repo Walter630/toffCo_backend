@@ -5,6 +5,7 @@ import com.site.toffCo.infra.exception.item.ItemNotFound;
 import com.site.toffCo.infra.exception.item.QuantidadInvalid;
 import com.site.toffCo.infra.exception.product.ProductNotFound;
 import com.site.toffCo.infra.utils.AuthUtil;
+import com.site.toffCo.module.carrinho.dto.CarrinhoRequestDTO;
 import com.site.toffCo.module.carrinho.dto.CarrinhoResponseDTO;
 import com.site.toffCo.module.carrinho.entity.Carrinho;
 import com.site.toffCo.module.carrinho.mapper.CarrinhoMapper;
@@ -139,5 +140,66 @@ public class CarrinhoService {
         repository.save(carrinho);
         log.info("Item removido do carrinho: usario={}, item={}",
                 usuario.getId(), itemId);
+    }
+
+    @Transactional
+    @CacheEvict(value = "carrinhos", key = "@authUtil.getUserLogado().id")
+    public CarrinhoResponseDTO updateCar(CarrinhoRequestDTO carrinhoRequestDTO) {
+        UUID carrinhoId = carrinhoRequestDTO.produtoId();
+        Integer novaQuantidade = carrinhoRequestDTO.quantidade();
+
+        if (novaQuantidade <= 0 || novaQuantidade > 1000 || novaQuantidade == null) {
+            throw new QuantidadInvalid("Quantidade do produto invalida");
+        }
+
+        User usuario = authUtil.getUserLogado();
+        Carrinho carrinho = repository.findByUser_Id(usuario.getId()).orElseThrow(
+                () -> new CarNotFound("Carrinho vazio")
+        );
+
+        ItemCarrinho item = carrinho.getItens().stream()
+                .filter(i -> i.getProduto().getId().equals(carrinhoId))
+                .findFirst()
+                .orElseThrow(() -> new ItemNotFound("Item not found"));
+
+        if (novaQuantidade == 0) {
+            removerItem(item.getId());
+            return findByCar();
+        }
+
+        int quantidadeAtual = item.getQuantidade();
+        int diferenca =  novaQuantidade - quantidadeAtual;
+
+        if (diferenca == 0) {
+            return mapper.toDto(carrinho);
+        }
+
+        Produto produtoEstoque = produtoRepository.findByIdForUpdate(carrinhoId).orElseThrow(
+                () -> new ProductNotFound("Produto nao encontrado")
+        );
+
+        if (diferenca > 0) {
+            if (produtoEstoque.getEstoque() < diferenca) {
+                throw new QuantidadInvalid("Quantidade do produto invalida");
+            }
+            produtoEstoque.setEstoque(produtoEstoque.getEstoque() - diferenca);
+        } else {
+            produtoEstoque.setEstoque(produtoEstoque.getEstoque() + Math.abs(diferenca));
+        }
+
+        produtoRepository.save(produtoEstoque);
+
+        item.setQuantidade(novaQuantidade);
+        item.setPrice(produtoEstoque.getPrice());
+
+        BigDecimal total = carrinho.getItens().stream()
+                .map(i -> i.getPrice().multiply(BigDecimal.valueOf(i.getQuantidade())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        carrinho.setValorTotal(total);
+
+        log.info("Carrinho atualizado: usuario={}, produto={}, quantidade antiga={}, nova quantidade={}",
+                usuario.getId(), carrinhoId, quantidadeAtual, novaQuantidade);
+
+        return mapper.toDto(repository.save(carrinho));
     }
 }

@@ -7,4 +7,5 @@ import java.util.UUID;
 
 public interface PagamentoStrategy {
     ResponseDTO processar(BigDecimal valor, UUID pedidoId);
+    String getTipoPagamento();
 }

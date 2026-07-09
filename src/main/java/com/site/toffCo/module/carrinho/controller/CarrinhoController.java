@@ -36,4 +36,11 @@ public class CarrinhoController {
         service.removerItem(itemId);
         return ResponseEntity.noContent().build();
     }
+
+    //============================== DELETE_ITEM_ID ==============================
+
+    @PutMapping("/item/{produtoId}")
+    public ResponseEntity<CarrinhoResponseDTO>  updateItem(@PathVariable UUID produtoId, @RequestParam Integer quantidade) {
+        return ResponseEntity.ok(service.addItem(produtoId, quantidade));
+    }
 }
