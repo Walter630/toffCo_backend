@@ -57,9 +57,18 @@ public class UserService {
         // ATENÇÃO: Troque 'Role.USER' pelo nome exato da sua classe Enum e do valor.
         // (ex: UserRole.CLIENTE, RoleEnum.DEFAULT_USER, et
         userCriado.setRole(Role.USER);
-        var userSave = this.repository.save(userCriado);
+        var userSave = repository.saveAndFlush(userCriado);
+
+        log.info(
+                "Usuário salvo: email={}, username={}",
+                userSave.getEmail(),
+                userSave.getUsername()
+        );
+
+        registerProducer.send(
+                new RegisterEvent(userSave.getEmail(), userSave.getUsername())
+        );
         log.info("User criado: {}", userCriado);
-        registerProducer.send(new RegisterEvent(userSave.getEmail(), userSave.getUsername()));
         return mapper.toDto(userSave);
     }
 

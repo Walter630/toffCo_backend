@@ -1,5 +1,6 @@
 package com.site.toffCo.module.user.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.site.toffCo.module.user.entity.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -19,7 +20,8 @@ public record UserRequestDTO(
 
         @NotBlank(message = "Numero de telefone é obrigatorio")
         String phone,
-
+        @NotBlank(message = "Nome do usuário é obrigatório")
+        @JsonAlias("name")
         String username,
 
         Role role // Mudei para singular, já que geralmente é um Role por vez, ou Set<Role> se forem vários
