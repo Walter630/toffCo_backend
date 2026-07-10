@@ -8,5 +8,5 @@ public enum Status {
     INDISPONIVEL,
     SEM_ESTOQUE,
     PRE_VENDA,
-    EM_PRODUÇAO
+    EM_PRODUCAO
 }
