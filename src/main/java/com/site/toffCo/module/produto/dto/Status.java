@@ -5,5 +5,8 @@ public enum Status {
     ATIVO,
     EM_BREVE,
     ESGOTADO,
-    INDISPONIVEL
+    INDISPONIVEL,
+    SEM_ESTOQUE,
+    PRE_VENDA,
+    EM_PRODUÇAO
 }
