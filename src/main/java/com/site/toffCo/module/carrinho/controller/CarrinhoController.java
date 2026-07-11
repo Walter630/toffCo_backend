@@ -1,5 +1,6 @@
 package com.site.toffCo.module.carrinho.controller;
 
+import com.site.toffCo.module.carrinho.dto.CarrinhoRequestDTO;
 import com.site.toffCo.module.carrinho.dto.CarrinhoResponseDTO;
 import com.site.toffCo.module.carrinho.service.CarrinhoService;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +41,9 @@ public class CarrinhoController {
     //============================== DELETE_ITEM_ID ==============================
 
     @PutMapping("/item/{produtoId}")
-    public ResponseEntity<CarrinhoResponseDTO>  updateItem(@PathVariable UUID produtoId, @RequestParam Integer quantidade) {
-        return ResponseEntity.ok(service.addItem(produtoId, quantidade));
+    public ResponseEntity<CarrinhoResponseDTO>  updateItem( @PathVariable UUID produtoId,
+                                                            @RequestParam Integer quantidade) {
+        var dto = new CarrinhoRequestDTO(produtoId, quantidade);
+        return ResponseEntity.ok(service.updateCar(dto));
     }
 }

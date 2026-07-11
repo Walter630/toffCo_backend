@@ -148,7 +148,7 @@ public class CarrinhoService {
         UUID carrinhoId = carrinhoRequestDTO.produtoId();
         Integer novaQuantidade = carrinhoRequestDTO.quantidade();
 
-        if (novaQuantidade <= 0 || novaQuantidade > 1000 || novaQuantidade == null) {
+        if (novaQuantidade == null || novaQuantidade < 0 || novaQuantidade > 1000) {
             throw new QuantidadInvalid("Quantidade do produto invalida");
         }
 
