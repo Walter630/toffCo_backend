@@ -44,7 +44,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
+                                .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/auth/login",
                                 "/api/auth/register"
@@ -52,8 +52,7 @@ public class SecurityConfig {
 
                         .requestMatchers(HttpMethod.GET,
                                 "/api/produtos",
-                                "/api/produtos/*",
-                                "/uploads/**"
+                                "/api/produtos/*"
                         ).permitAll()
 
                         .requestMatchers(HttpMethod.POST,
