@@ -78,5 +78,6 @@ public class ProdutoController {
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Map<String, String>> upload(@RequestPart("image") MultipartFile image) {
         String url = service.uploadImage(image);
+        return ResponseEntity.ok().body(Map.of("url", url));
     }
 }
