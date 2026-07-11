@@ -9,9 +9,8 @@ import com.site.toffCo.module.produto.entity.Produto;
 import com.site.toffCo.module.produto.mapper.ProdutoMapper;
 import com.site.toffCo.module.produto.queryFilter.ProductQueryFilter;
 import com.site.toffCo.module.produto.repository.ProdutoRepository;
-import com.site.toffCo.module.user.entity.Role;
-import com.site.toffCo.module.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,7 +35,6 @@ public class ProdutoService {
 
     private final ProdutoRepository repository;
     private final ProdutoMapper mapper;
-    private final UserRepository userService;
     private final CodigoBarrasServices codigoBarrasServices;
 
     //============================== CREATE PRODUCT ==============================
@@ -100,17 +98,15 @@ public class ProdutoService {
 
     //============================== DELETE ==============================
 
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public void deleteById(UUID id) {
         if(!repository.existsById(id)) {
             log.error("Produto nao encontrado");
             throw new ProductNotFound("Product not found with id " + id);
         }
-        if (userService.findByRole(Role.ADMIN)) {
-            //deleta somente se for admin
-            repository.deleteById(id);
-            log.info("Produto deletado: {}", id);
-        }
+        repository.deleteById(id);
+        log.info("Produto deletado: {}", id);
     }
 
     public String uploadImage(MultipartFile image) {
