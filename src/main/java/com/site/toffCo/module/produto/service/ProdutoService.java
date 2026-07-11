@@ -39,6 +39,7 @@ public class ProdutoService {
 
     //============================== CREATE PRODUCT ==============================
 
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public ProdutoResponseDTO create(ProdutoRequestDTO produtoDTO) {
         Produto produto = mapper.toEntity(produtoDTO);
@@ -63,6 +64,7 @@ public class ProdutoService {
 
     //============================== UPDATE ==============================
 
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public ProdutoResponseDTO update(UUID id, ProdutoRequestDTO produtoDTO) {
         Produto produto = repository.findById(id).orElseThrow(() ->
