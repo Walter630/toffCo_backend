@@ -11,7 +11,11 @@ import com.site.toffCo.module.produto.queryFilter.ProductQueryFilter;
 import com.site.toffCo.module.produto.repository.ProdutoRepository;
 import com.site.toffCo.module.user.entity.Role;
 import com.site.toffCo.module.user.repository.UserRepository;
-import com.site.toffCo.module.user.service.UserService;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.multipart.MultipartFile;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.Specification;
@@ -27,6 +31,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ProdutoService {
 
+    @Value("${app.upload-dir:/app/upload}")
+    private String uploadDir;
+
     private final ProdutoRepository repository;
     private final ProdutoMapper mapper;
     private final UserRepository userService;
@@ -40,8 +47,11 @@ public class ProdutoService {
         produto = repository.save(produto);
         log.info("Produto criado com id={}", produto.getId());
 
-        String codigo = codigoBarrasServices.gerarCodigoEAN13(produto.getId());
-        produto.setCodigoBarras(codigo);
+        String codigo = produto.getCodigoBarras();
+        if (codigo == null || codigo.isBlank()) {
+            codigo = codigoBarrasServices.gerarCodigoEAN13(produto.getId());
+            produto.setCodigoBarras(codigo);
+        }
         log.info("Codigo de barras gerado: {}", codigo);
 
         try{
@@ -100,6 +110,39 @@ public class ProdutoService {
             //deleta somente se for admin
             repository.deleteById(id);
             log.info("Produto deletado: {}", id);
+        }
+    }
+
+    public String uploadImage(MultipartFile image) {
+        if (image.isEmpty()) {
+            throw new IllegalArgumentException("Imagem vazia");
+        }
+
+        String contentType = image.getContentType();
+
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new IllegalArgumentException("Arquivo enviado nao e uma imagem");
+        }
+
+        try {
+            Path directory = Paths.get(uploadDir);
+            Files.createDirectories(directory);
+
+            String extension = switch (contentType) {
+                case "image/png" -> ".png";
+                case "image/jpeg" -> ".jpg";
+                case "image/webp" -> ".webp";
+                default -> throw new IllegalArgumentException("Formato de imagem invalido");
+            };
+
+            String filename = UUID.randomUUID() + extension;
+            Path destination = directory.resolve(filename).normalize();
+
+            image.transferTo(destination);
+
+            return "/uploads/" + filename;
+        } catch (IOException exception) {
+            throw new RuntimeException("Nao foi possivel salvar a imagem", exception);
         }
     }
 

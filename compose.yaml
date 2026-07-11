@@ -3,6 +3,8 @@ services:
   # ─── Sua aplicação ───────────────────────────────────────
   toffco-app:
     build: .
+    volumes:
+      - ./uploads:/app/uploads
     env_file:
       - .env
     networks:
@@ -29,6 +31,7 @@ services:
       - WHATSAPP_SESSION_TTL=PT24H
       - EVOLUTION_API_URL=http://evolution-api:8080
       - EVOLUTION_API_INSTANCE=ToffCoBot
+      - APP_UPLOAD_DIR=/app/uploads
 
   # ─── PostgresSQL ───────────────────────────────────────
   postgres:
