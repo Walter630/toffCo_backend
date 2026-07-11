@@ -20,6 +20,7 @@ public record ProdutoRequestDTO(
         @NotNull(message = "Estoque é obrigatorio")
         @PositiveOrZero(message = "Estoque nao pode ser negativo")
         Integer estoque,
+        String codigoBarras,
         String type,
         Status status
 ) {
