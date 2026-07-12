@@ -44,4 +44,9 @@ public class ProductSpec {
         return (root, query, cb) ->
                 status == null ? null : cb.equal(root.get("status"), status);
     }
+
+    public static Specification<Produto> findByMarca(String marca) {
+        return (root, query, cb) ->
+                marca == null ? null : cb.equal(root.get("marca"), marca);
+    }
 }

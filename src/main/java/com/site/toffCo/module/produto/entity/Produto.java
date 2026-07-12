@@ -34,6 +34,9 @@ public class Produto {
     private Integer estoque;
     private String type; //PLA, PATG, ACESSORIOS
 
+    @Column(nullable = false)
+    private String marca;
+
     @Column(unique = true)
     private String codigoBarras;
 

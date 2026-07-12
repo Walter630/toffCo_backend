@@ -13,5 +13,6 @@ public record ProdutoResponseDTO(
         Integer estoque,
         String type,
         Status status,
-        String codigoBarras
+        String codigoBarras,
+        String marca
 ) {}

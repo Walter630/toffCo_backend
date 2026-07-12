@@ -18,6 +18,7 @@ public class ProductQueryFilter {
     private String categoria;
     private String type;
     private String status;
+    private String marca;
 
     public Specification<Produto> buildSpecification() {
         return Specification
@@ -26,6 +27,7 @@ public class ProductQueryFilter {
                 .and(findByPrice(price))
                 .and(findByType(Collections.singletonList(type)))
                 .and(findByCategory(categoria))
-                .and(findByStatus(status));
+                .and(findByStatus(status))
+                .and(findByMarca(marca));
     }
 }

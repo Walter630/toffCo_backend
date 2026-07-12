@@ -22,6 +22,7 @@ public record ProdutoRequestDTO(
         Integer estoque,
         String codigoBarras,
         String type,
-        Status status
+        Status status,
+        String marca
 ) {
 }
