@@ -34,9 +34,9 @@ class ProdutoServiceTest {
 
     UUID id = UUID.randomUUID();
 
-    ProdutoResponseDTO produtoResponseDTO = new ProdutoResponseDTO(id,"filamento", "descriçao de filamento", "twste","FILAMENTOS", BigDecimal.valueOf(80), 2, "", Status.ATIVO);
+    ProdutoResponseDTO produtoResponseDTO = new ProdutoResponseDTO(id,"filamento", "descriçao de filamento", "twste","FILAMENTOS", BigDecimal.valueOf(80), 2, "", Status.ATIVO, "212233333", "PLA");
 
-    ProdutoRequestDTO produtodto = new ProdutoRequestDTO("filamento", "descriçao de filamento", BigDecimal.valueOf(80),"FILAMENTOS", "" , 2, "",  Status.ATIVO);
+    ProdutoRequestDTO produtodto = new ProdutoRequestDTO("filamento", "descriçao de filamento", BigDecimal.valueOf(80),"FILAMENTOS", "" , 2, "32323232332", "te",  Status.ATIVO, "PLA");
 
     @Test
     @DisplayName("Deve Criar um produto")
@@ -80,7 +80,7 @@ class ProdutoServiceTest {
         produto.setName("filamento");
         produto.setPrice(BigDecimal.valueOf(80.99));
 
-        ProdutoResponseDTO produtoResponseDTO = new ProdutoResponseDTO(id,"filamento", "descriçao de filamento", "twste","FILAMENTOS", BigDecimal.valueOf(80), 2, "", Status.ATIVO);
+        ProdutoResponseDTO produtoResponseDTO = new ProdutoResponseDTO(id,"filamento", "descriçao de filamento", "twste","FILAMENTOS", BigDecimal.valueOf(80), 2, "", Status.ATIVO, "212233333", "PLA");
 
         Mockito.when(produtoRepository.findAll(any(Specification.class))).thenReturn(List.of(produto));
         Mockito.when(produtoMapper.toDto(produto)).thenReturn(produtoResponseDTO);
