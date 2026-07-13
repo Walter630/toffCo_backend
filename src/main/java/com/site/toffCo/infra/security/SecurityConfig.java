@@ -49,7 +49,8 @@ public class SecurityConfig {
                                 .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/auth/login",
-                                "/api/auth/register"
+                                "/api/auth/register",
+                                "/api/auth/refresh_token"
                         ).permitAll()
 
                         .requestMatchers(HttpMethod.GET,

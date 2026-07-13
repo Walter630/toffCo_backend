@@ -97,7 +97,7 @@ public class UserService {
                 .map(RefreshToken::getUser)
                 .map(user -> {
                     String newAccessToken = tokenService.generateToken(user.getEmail());
-                    return new LoginResponseDTO(refreshTokenDTO.refreshToken(), newAccessToken);
+                    return new LoginResponseDTO(newAccessToken, refreshTokenDTO.refreshToken());
                 })
                 .orElseThrow(() -> new InvalidRefreshToken("Refresh token invalid"));
     }
