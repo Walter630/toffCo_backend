@@ -13,12 +13,10 @@ import com.site.toffCo.module.carrinho.repository.CarrinhoRepository;
 import com.site.toffCo.module.itemcarrinho.entity.ItemCarrinho;
 import com.site.toffCo.module.produto.entity.Produto;
 import com.site.toffCo.module.produto.repository.ProdutoRepository;
-import com.site.toffCo.module.produto.service.ProdutoService;
 import com.site.toffCo.module.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,142 +29,249 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CarrinhoService {
 
+    private static final BigDecimal QUANTIDADE_MAXIMA =
+            BigDecimal.valueOf(1000);
+
     private final CarrinhoRepository repository;
     private final CarrinhoMapper mapper;
     private final ProdutoRepository produtoRepository;
     private final AuthUtil authUtil;
 
-    //============================== CREATE ==============================
+    // ============================== CREATE ==============================
 
     @Transactional
     public Carrinho getOuCreateCar() {
         User user = authUtil.getUserLogado();
+
         return repository.findByUser_Id(user.getId())
                 .orElseGet(() -> {
                     Carrinho carrinho = new Carrinho();
                     carrinho.setUser(user);
+
                     return repository.save(carrinho);
                 });
     }
 
-    //============================== FINDCAR ==============================
+    // ============================== FIND CAR ==============================
 
-    // guarda automaticamente no redis
     @Transactional(readOnly = true)
-    @Cacheable(value = "carrinhos", key = "@authUtil.getUserLogado().id")
+    @Cacheable(
+            value = "carrinhos",
+            key = "@authUtil.getUserLogado().id"
+    )
     public CarrinhoResponseDTO findByCar() {
         User user = authUtil.getUserLogado();
+
         Carrinho carrinho = repository.findByUser_Id(user.getId())
-                .orElseThrow(() -> new CarNotFound("Carrinho nao encontrado"));
+                .orElseThrow(() ->
+                        new CarNotFound("Carrinho não encontrado")
+                );
+
         return mapper.toDto(carrinho);
     }
 
-    //============================== ADDITEM ==============================
+    // ============================== ADD ITEM ==============================
 
     @Transactional
-    @CacheEvict(value = "carrinhos", key = "@authUtil.getUserLogado().id") // limpa o cache
-    public CarrinhoResponseDTO addItem(UUID produtoId, BigDecimal quantidade) {
-        if (quantidade == null
-                || quantidade.compareTo(BigDecimal.ZERO) <= 0
-                || quantidade.compareTo(BigDecimal.valueOf(1000)) > 1000) {
-            throw new QuantidadInvalid("Quantidade deve ser maior que zero");
-        }
-        Produto produtoEstoque = produtoRepository.findByIdForUpdate(produtoId)
-                .orElseThrow(() -> new ProductNotFound("Produto nao encontrado"));
-        //validação de estoque
-        if (produtoEstoque.getEstoque().compareTo(quantidade) < 0) {
-            log.warn("Estoque insuficiente para o produto: {}, novo estoque={}, solicitado={}",
-                    produtoId, produtoEstoque.getEstoque(), quantidade);
-            throw new QuantidadInvalid("Quantidade insuficiente para a compra");
+    @CacheEvict(
+            value = "carrinhos",
+            key = "@authUtil.getUserLogado().id"
+    )
+    public CarrinhoResponseDTO addItem(
+            UUID produtoId,
+            BigDecimal quantidade
+    ) {
+        validarQuantidade(quantidade);
+
+        Produto produto = produtoRepository.findByIdForUpdate(produtoId)
+                .orElseThrow(() ->
+                        new ProductNotFound("Produto não encontrado")
+                );
+
+        if (produto.getEstoque().compareTo(quantidade) < 0) {
+            log.warn(
+                    "Estoque insuficiente: produto={}, estoque={}, solicitado={}",
+                    produtoId,
+                    produto.getEstoque(),
+                    quantidade
+            );
+
+            throw new QuantidadInvalid(
+                    "Quantidade insuficiente em estoque"
+            );
         }
 
-        produtoEstoque.setEstoque(produtoEstoque.getEstoque().subtract(quantidade));
-        produtoRepository.save(produtoEstoque);
-        log.info("Estoque atualizado: produto={}, novo estoque={}",
-                produtoId, produtoEstoque.getEstoque());
+        produto.setEstoque(
+                produto.getEstoque().subtract(quantidade)
+        );
+
+        produtoRepository.save(produto);
+
+        log.info(
+                "Estoque atualizado: produto={}, novo estoque={}",
+                produtoId,
+                produto.getEstoque()
+        );
+
         Carrinho carrinho = getOuCreateCar();
-
-        Produto produto = produtoEstoque;
 
         ItemCarrinho item = carrinho.getItens()
                 .stream()
-                .filter(i -> i.getProduto().getId().equals(produtoId))
+                .filter(existingItem ->
+                        existingItem.getProduto()
+                                .getId()
+                                .equals(produtoId)
+                )
                 .findFirst()
                 .orElseGet(() -> {
-                    ItemCarrinho itemCarrinho = new ItemCarrinho();
-                    itemCarrinho.setCarrinho(carrinho);
-                    itemCarrinho.setProduto(produto);
-                    itemCarrinho.setQuantidade(0);
-                    carrinho.getItens().add(itemCarrinho);
-                    return itemCarrinho;
+                    ItemCarrinho novoItem = new ItemCarrinho();
+
+                    novoItem.setCarrinho(carrinho);
+                    novoItem.setProduto(produto);
+                    novoItem.setQuantidade(0);
+                    novoItem.setPrice(produto.getPrice());
+
+                    carrinho.getItens().add(novoItem);
+
+                    return novoItem;
                 });
 
-        item.setQuantidade(item.getQuantidade() + quantidade.intValue());
-        item.setPrice(produto.getPrice());
-        // 🔥 ADICIONE ISSO: Recalcula o valor total do carrinho somando os itens ativos
-        BigDecimal total = carrinho.getItens().stream()
-                .map(i -> i.getPrice().multiply(BigDecimal.valueOf(i.getQuantidade())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        carrinho.setValorTotal(total);
+        int quantidadeInteira;
 
-        log.info("Item adicionado ao carrinho: usuario={}, produto={}, quantidade={}",
-                carrinho.getUser().getId(), produtoId, quantidade);
-        return mapper.toDto(repository.save(carrinho));
+        try {
+            quantidadeInteira = quantidade.intValueExact();
+        } catch (ArithmeticException exception) {
+            throw new QuantidadInvalid(
+                    "A quantidade deve ser um número inteiro"
+            );
+        }
+
+        item.setQuantidade(
+                item.getQuantidade() + quantidadeInteira
+        );
+
+        item.setPrice(produto.getPrice());
+
+        recalcularValorTotal(carrinho);
+
+        Carrinho carrinhoSalvo = repository.save(carrinho);
+
+        log.info(
+                "Item adicionado ao carrinho: usuario={}, produto={}, quantidade={}",
+                carrinho.getUser().getId(),
+                produtoId,
+                quantidadeInteira
+        );
+
+        return mapper.toDto(carrinhoSalvo);
     }
 
-    //============================== REMOVE ==============================
+    // ============================== REMOVE ITEM ==============================
 
     @Transactional
-    @CacheEvict(value = "carrinhos", key = "@authUtil.getUserLogado().id")
+    @CacheEvict(
+            value = "carrinhos",
+            key = "@authUtil.getUserLogado().id"
+    )
     public void removerItem(UUID itemId) {
         User usuario = authUtil.getUserLogado();
+
         Carrinho carrinho = repository.findByUser_Id(usuario.getId())
-                .orElseThrow(() -> new CarNotFound("Carrinho não encontrado"));
-        // 1. Encontra o item
-        ItemCarrinho itemParaRemover = carrinho.getItens().stream()
-                .filter(i -> i.getId().equals(itemId))
+                .orElseThrow(() ->
+                        new CarNotFound("Carrinho não encontrado")
+                );
+
+        ItemCarrinho itemParaRemover = carrinho.getItens()
+                .stream()
+                .filter(item -> item.getId().equals(itemId))
                 .findFirst()
-                .orElseThrow(() -> new ItemNotFound("Item não encontrado no carrinho"));
+                .orElseThrow(() ->
+                        new ItemNotFound(
+                                "Item não encontrado no carrinho"
+                        )
+                );
 
-        // 2. DEVOLVE O ESTOQUE (Pessimistic Lock aqui também para segurança)
-        Produto produto = produtoRepository.findByIdForUpdate(itemParaRemover.getProduto().getId())
-                .orElseThrow(() -> new ProductNotFound("Produto não encontrado"));
+        Produto produto = produtoRepository.findByIdForUpdate(
+                        itemParaRemover.getProduto().getId()
+                )
+                .orElseThrow(() ->
+                        new ProductNotFound("Produto não encontrado")
+                );
 
-        produto.setEstoque(produto.getEstoque().add(BigDecimal.valueOf(itemParaRemover.getQuantidade())));
+        BigDecimal quantidadeDevolvida =
+                BigDecimal.valueOf(itemParaRemover.getQuantidade());
+
+        produto.setEstoque(
+                produto.getEstoque().add(quantidadeDevolvida)
+        );
+
         produtoRepository.save(produto);
 
-        log.info("Estoque devolvido: produto={}, quantidade devolvida={}, novo estoque={}",
-                produto.getId(), itemParaRemover.getQuantidade(), produto.getEstoque());
-        // 3. Remove do carrinho
         carrinho.getItens().remove(itemParaRemover);
+
+        recalcularValorTotal(carrinho);
+
         repository.save(carrinho);
-        log.info("Item removido do carrinho: usario={}, item={}",
-                usuario.getId(), itemId);
+
+        log.info(
+                "Item removido: usuario={}, item={}, produto={}, quantidade devolvida={}, novo estoque={}",
+                usuario.getId(),
+                itemId,
+                produto.getId(),
+                quantidadeDevolvida,
+                produto.getEstoque()
+        );
     }
 
-    @Transactional
-    @CacheEvict(value = "carrinhos", key = "@authUtil.getUserLogado().id")
-    public CarrinhoResponseDTO updateCar(CarrinhoRequestDTO carrinhoRequestDTO) {
-        UUID carrinhoId = carrinhoRequestDTO.produtoId();
-        Integer novaQuantidade = carrinhoRequestDTO.quantidade();
+    // ============================== UPDATE CAR ==============================
 
-        if (novaQuantidade == null || novaQuantidade < 0 || novaQuantidade > 1000) {
-            throw new QuantidadInvalid("Quantidade do produto invalida");
+    @Transactional
+    @CacheEvict(
+            value = "carrinhos",
+            key = "@authUtil.getUserLogado().id"
+    )
+    public CarrinhoResponseDTO updateCar(
+            CarrinhoRequestDTO request
+    ) {
+        UUID produtoId = request.produtoId();
+        Integer novaQuantidade = request.quantidade();
+
+        if (novaQuantidade == null
+                || novaQuantidade < 0
+                || novaQuantidade > 1000) {
+
+            throw new QuantidadInvalid(
+                    "Quantidade deve estar entre 0 e 1000"
+            );
         }
 
         User usuario = authUtil.getUserLogado();
-        Carrinho carrinho = repository.findByUser_Id(usuario.getId()).orElseThrow(
-                () -> new CarNotFound("Carrinho vazio")
-        );
 
-        ItemCarrinho item = carrinho.getItens().stream()
-                .filter(i -> i.getProduto().getId().equals(carrinhoId))
+        Carrinho carrinho = repository.findByUser_Id(usuario.getId())
+                .orElseThrow(() ->
+                        new CarNotFound("Carrinho vazio")
+                );
+
+        ItemCarrinho item = carrinho.getItens()
+                .stream()
+                .filter(existingItem ->
+                        existingItem.getProduto()
+                                .getId()
+                                .equals(produtoId)
+                )
                 .findFirst()
-                .orElseThrow(() -> new ItemNotFound("Item not found"));
+                .orElseThrow(() ->
+                        new ItemNotFound(
+                                "Item não encontrado no carrinho"
+                        )
+                );
 
         if (novaQuantidade == 0) {
-            removerItem(item.getId());
-            return findByCar();
+            devolverEstoqueERemoverItem(carrinho, item);
+
+            Carrinho carrinhoSalvo = repository.save(carrinho);
+
+            return mapper.toDto(carrinhoSalvo);
         }
 
         int quantidadeAtual = item.getQuantidade();
@@ -176,32 +281,125 @@ public class CarrinhoService {
             return mapper.toDto(carrinho);
         }
 
-        Produto produtoEstoque = produtoRepository.findByIdForUpdate(carrinhoId).orElseThrow(
-                () -> new ProductNotFound("Produto nao encontrado")
-        );
+        Produto produto = produtoRepository.findByIdForUpdate(produtoId)
+                .orElseThrow(() ->
+                        new ProductNotFound("Produto não encontrado")
+                );
 
         if (diferenca > 0) {
-            if (produtoEstoque.getEstoque().compareTo(BigDecimal.valueOf(diferenca)) < 0) {
-                throw new QuantidadInvalid("Quantidade do produto invalida");
+            BigDecimal quantidadeAdicional =
+                    BigDecimal.valueOf(diferenca);
+
+            if (produto.getEstoque()
+                    .compareTo(quantidadeAdicional) < 0) {
+
+                throw new QuantidadInvalid(
+                        "Quantidade insuficiente em estoque"
+                );
             }
-            produtoEstoque.setEstoque(produtoEstoque.getEstoque().subtract(BigDecimal.valueOf(diferenca)));
+
+            produto.setEstoque(
+                    produto.getEstoque()
+                            .subtract(quantidadeAdicional)
+            );
+
         } else {
-            produtoEstoque.setEstoque(produtoEstoque.getEstoque().add(BigDecimal.valueOf(Math.abs(diferenca))));
+            BigDecimal quantidadeDevolvida =
+                    BigDecimal.valueOf(Math.abs(diferenca));
+
+            produto.setEstoque(
+                    produto.getEstoque()
+                            .add(quantidadeDevolvida)
+            );
         }
 
-        produtoRepository.save(produtoEstoque);
+        produtoRepository.save(produto);
 
         item.setQuantidade(novaQuantidade);
-        item.setPrice(produtoEstoque.getPrice());
+        item.setPrice(produto.getPrice());
 
-        BigDecimal total = carrinho.getItens().stream()
-                .map(i -> i.getPrice().multiply(BigDecimal.valueOf(i.getQuantidade())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        recalcularValorTotal(carrinho);
+
+        Carrinho carrinhoSalvo = repository.save(carrinho);
+
+        log.info(
+                "Carrinho atualizado: usuario={}, produto={}, quantidade antiga={}, nova quantidade={}, estoque={}",
+                usuario.getId(),
+                produtoId,
+                quantidadeAtual,
+                novaQuantidade,
+                produto.getEstoque()
+        );
+
+        return mapper.toDto(carrinhoSalvo);
+    }
+
+    // ============================== AUXILIARES ==============================
+
+    private void validarQuantidade(BigDecimal quantidade) {
+        if (quantidade == null
+                || quantidade.compareTo(BigDecimal.ZERO) <= 0
+                || quantidade.compareTo(QUANTIDADE_MAXIMA) > 0) {
+
+            throw new QuantidadInvalid(
+                    "Quantidade deve ser maior que zero e menor ou igual a 1000"
+            );
+        }
+
+        if (quantidade.stripTrailingZeros().scale() > 0) {
+            throw new QuantidadInvalid(
+                    "A quantidade deve ser um número inteiro"
+            );
+        }
+    }
+
+    private void recalcularValorTotal(Carrinho carrinho) {
+        BigDecimal total = carrinho.getItens()
+                .stream()
+                .map(item ->
+                        item.getPrice().multiply(
+                                BigDecimal.valueOf(
+                                        item.getQuantidade()
+                                )
+                        )
+                )
+                .reduce(
+                        BigDecimal.ZERO,
+                        BigDecimal::add
+                );
+
         carrinho.setValorTotal(total);
+    }
 
-        log.info("Carrinho atualizado: usuario={}, produto={}, quantidade antiga={}, nova quantidade={}",
-                usuario.getId(), carrinhoId, quantidadeAtual, novaQuantidade);
+    private void devolverEstoqueERemoverItem(
+            Carrinho carrinho,
+            ItemCarrinho item
+    ) {
+        Produto produto = produtoRepository.findByIdForUpdate(
+                        item.getProduto().getId()
+                )
+                .orElseThrow(() ->
+                        new ProductNotFound("Produto não encontrado")
+                );
 
-        return mapper.toDto(repository.save(carrinho));
+        BigDecimal quantidadeDevolvida =
+                BigDecimal.valueOf(item.getQuantidade());
+
+        produto.setEstoque(
+                produto.getEstoque().add(quantidadeDevolvida)
+        );
+
+        produtoRepository.save(produto);
+
+        carrinho.getItens().remove(item);
+
+        recalcularValorTotal(carrinho);
+
+        log.info(
+                "Item removido ao zerar quantidade: produto={}, quantidade devolvida={}, estoque={}",
+                produto.getId(),
+                quantidadeDevolvida,
+                produto.getEstoque()
+        );
     }
 }
