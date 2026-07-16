@@ -67,7 +67,8 @@ public class SecurityConfig {
                                 "/webhook/whatsapp/receive",
                                 "/webhook/whatsapp/simulate",
                                 "/webhook/set/ToffCoBot",
-                                "/instance/create"
+                                "/instance/create",
+                                "/api/webhooks/odoo/**"
                         ).permitAll()
 
                         .requestMatchers(HttpMethod.POST,
