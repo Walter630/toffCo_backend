@@ -25,11 +25,16 @@ public class OdooProductSyncConsumer {
                 event.barcode()
         );
 
-        syncService.sync(event);
+        Long odooProductId =
+                syncService.syncProduct(
+                        event.productId()
+                );
+
 
         log.info(
-                "Produto sincronizado com Odoo: productId={}",
-                event.productId()
+                "Produto sincronizado com Odoo: productId={}, odooProductId={}",
+                event.productId(),
+                odooProductId
         );
     }
 }

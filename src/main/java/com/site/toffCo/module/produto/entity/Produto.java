@@ -1,5 +1,6 @@
 package com.site.toffCo.module.produto.entity;
 
+import com.site.toffCo.module.odoo.dto.OdooSyncStatus;
 import com.site.toffCo.module.produto.dto.Status;
 import jakarta.persistence.*;
 import lombok.*;
@@ -50,4 +51,24 @@ public class Produto {
     private LocalDateTime createdAt;
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+
+    //Odoo atributos
+    @Column(name = "odoo_product-id", unique = true)
+    private Long odooProductId;
+/*
+    @Column(name = "odoo_product_template_id", unique = true)
+    private Long odooProductTemplateId;
+
+    @Column(name = "odoo_sync_status")
+    @Enumerated(EnumType.STRING)
+    private OdooSyncStatus odooSyncStatus;
+
+    @Column(name = "odoo_last_sync_at")
+    private LocalDateTime odooLastSyncAt;
+
+    @Column(name = "odoo_sync_error", columnDefinition = "TEXT")
+    private String odooSyncError;
+
+ */
 }

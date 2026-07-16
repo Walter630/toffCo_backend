@@ -16,7 +16,7 @@ public class OdooWebhookController {
     private final RabbitTemplate rabbitTemplate;
 
     @Value("${odoo.webhook.token}")
-    private String expectedtoken;
+    private String expectedToken;
     public OdooWebhookController(RabbitTemplate rabbitTemplate) {
         this.rabbitTemplate = rabbitTemplate;
     }
@@ -32,8 +32,8 @@ public class OdooWebhookController {
                 payload.getLocationDestUsage(),
                 payload.getReference()
         );
-        if (!expectedtoken.equals(token)) {
-            log.warn("Webhook recebido: token={}, error={}", token, expectedtoken);
+        if (!expectedToken.equals(token)) {
+            log.warn("Webhook Odoo rejeitado: token inválido");
             return ResponseEntity.status(401).build();
         }
 
