@@ -1,20 +1,24 @@
 package com.site.toffCo.module.odoo.infra.consumer;
 
+import com.site.toffCo.module.odoo.business.OdooMappingService;
+import com.site.toffCo.module.odoo.dto.OdooStockWebhookDTO;
 import com.site.toffCo.infra.rabbitMQ.RabbitMQConfig;
-import com.site.toffCo.module.odoo.dto.OdooStockWebhookPayload;
-import com.site.toffCo.module.pedido.service.StockService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.stereotype.Component;
 
+@Slf4j
+@Component
+@RequiredArgsConstructor
 public class OdooStockConsumer {
-    private final StockService stockService;
 
-    public OdooStockConsumer(StockService stockService) {
-        this.stockService = stockService;
-    }
+    private final OdooMappingService odooMappingService;
 
     @RabbitListener(queues = RabbitMQConfig.QUEUE_ODOO_STOCK)
-    public void processStockDecrease(OdooStockWebhookPayload payload) {
-        // Invoca o serviço do módulo de produtos para realizar a baixa real no banco local
-        stockService.deductStockFromPresencialSale(payload.sku(), payload.quantidadeSaida());
+    public void handleStockUpdate(OdooStockWebhookDTO payload) {
+        log.info("Message received for Odoo stock update:  id={}", payload.getId());
+        odooMappingService.processStockMovement(payload);
+        log.info("Message odoo finalized: id={}", payload.getId());
     }
 }

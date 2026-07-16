@@ -69,6 +69,11 @@ public class SecurityConfig {
                                 "/webhook/set/ToffCoBot",
                                 "/instance/create"
                         ).permitAll()
+
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/admin/odoo/**"
+                                ).hasRole("ADMIN")
+
                         .anyRequest().authenticated() // Bloqueia o resto
                 )
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)

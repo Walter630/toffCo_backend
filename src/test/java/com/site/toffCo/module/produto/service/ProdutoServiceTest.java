@@ -36,7 +36,7 @@ class ProdutoServiceTest {
 
     ProdutoResponseDTO produtoResponseDTO = new ProdutoResponseDTO(id,"filamento", "descriçao de filamento", "twste","FILAMENTOS", BigDecimal.valueOf(80), 2, "", Status.ATIVO, "212233333", "PLA");
 
-    ProdutoRequestDTO produtodto = new ProdutoRequestDTO("filamento", "descriçao de filamento", BigDecimal.valueOf(80),"FILAMENTOS", "" , 2, "32323232332", "te",  Status.ATIVO, "PLA");
+    ProdutoRequestDTO produtodto = new ProdutoRequestDTO("filamento", "descriçao de filamento", BigDecimal.valueOf(80),"FILAMENTOS", "" , BigDecimal.valueOf(1), "32323232332", "te",  Status.ATIVO, "PLA");
 
     @Test
     @DisplayName("Deve Criar um produto")
@@ -47,7 +47,7 @@ class ProdutoServiceTest {
         produto.setPrice(BigDecimal.valueOf(80.99));
         produto.setCategoria("filamento");
         produto.setImage("twste");
-        produto.setEstoque(2);
+        produto.setEstoque(BigDecimal.valueOf(1));
 
         Mockito.when(produtoMapper.toEntity(produtodto)).thenReturn(produto);
         Mockito.when(produtoRepository.save(produto)).thenReturn(produto);

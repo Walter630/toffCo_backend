@@ -20,7 +20,7 @@ public interface ProdutoRepository extends JpaRepository<Produto, UUID>, JpaSpec
     @Lock(LockModeType.PESSIMISTIC_WRITE) //trava o item do estoque
     @Query("SELECT p FROM Produto p WHERE p.id = :id")
     Optional<Produto> findByIdForUpdate(@Param("id") UUID id);
-
+    Optional<Produto> findByCodigoBarras(String codigoBarras);
     UUID id(UUID id);
     boolean existsById(UUID id);
 }

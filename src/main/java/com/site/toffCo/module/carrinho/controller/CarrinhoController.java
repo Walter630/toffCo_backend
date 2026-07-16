@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @RequiredArgsConstructor
@@ -26,7 +27,7 @@ public class CarrinhoController {
     //============================== ADD_ITEM_CAR ==============================
 
     @PostMapping("/item/{produtoId}")
-    public ResponseEntity<CarrinhoResponseDTO> carrinho(@PathVariable UUID produtoId, @RequestParam Integer quantidade) {
+    public ResponseEntity<CarrinhoResponseDTO> carrinho(@PathVariable UUID produtoId, @RequestParam BigDecimal quantidade) {
         return ResponseEntity.ok(service.addItem(produtoId, quantidade));
     }
 

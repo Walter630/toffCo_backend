@@ -36,6 +36,16 @@ spring:
     port: ${RABBITMQ_PORT:5674}
     username: ${RABBITMQ_USER:myuser}
     password: ${RABBITMQ_PASS:secret}
+    listener:
+      simple:
+        acknowledge-mode: auto
+        retry:
+          enabled: true
+          max-retries: 3
+          initial-interval: 1000ms
+          multiplier: 2
+          max-interval: 5000ms
+        default-requeue-rejected: false
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -62,6 +72,17 @@ whatsapp:
   session:
     ttl: ${WHATSAPP_SESSION_TTL:PT24H}
 
+odoo:
+  sync:
+    enabled: ${ODOO_SYNC_ENABLED:false}
+
+  webhook:
+    token: ${ODOO_WEBHOOK_TOKEN:token-webhook-local}
+
+  base-url: ${ODOO_BASE_URL:https://toffbrasil.odoo.com}
+  database: ${ODOO_DATABASE:toffbrasil}
+  api-key: ${ODOO_API_KEY}
+
 logging:
   level:
     com:
@@ -72,3 +93,5 @@ logging:
         sql: DEBUG
         jdbc:
           bind: TRACE
+
+

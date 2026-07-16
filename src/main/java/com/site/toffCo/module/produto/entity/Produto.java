@@ -31,7 +31,7 @@ public class Produto {
     private BigDecimal price;
     private String image;
     private String categoria;
-    private Integer estoque;
+    private BigDecimal estoque;
     private String type; //PLA, PATG, ACESSORIOS
 
     @Column(nullable = false)

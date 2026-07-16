@@ -4,6 +4,7 @@ import com.site.toffCo.infra.exception.carrinho.CarIsEmpty;
 import com.site.toffCo.infra.exception.carrinho.CarNotFound;
 import com.site.toffCo.infra.exception.item.ItemNotFound;
 import com.site.toffCo.infra.exception.item.QuantidadInvalid;
+import com.site.toffCo.infra.exception.odoo.OdooBusinessException;
 import com.site.toffCo.infra.exception.payment.PaymentInvalidForm;
 import com.site.toffCo.infra.exception.payment.PaymentNotFound;
 import com.site.toffCo.infra.exception.product.CategoryNotExisting;
@@ -114,6 +115,15 @@ public class ExceptionHandlers extends ResponseEntityExceptionHandler {
     public ResponseEntity<ProblemDetail> handlePaymentInvalidForm(PaymentInvalidForm exception) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Payment invalid");
         log.warn("Tentativa de informa payment");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetail);
+    }
+
+    //============================== ODOO ==============================
+
+    @ExceptionHandler(OdooBusinessException.class)
+    public ResponseEntity<ProblemDetail> handleOdooBusinessException(OdooBusinessException exception) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Odoo business");
+        log.warn("Tentativa de buscar odoo business");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetail);
     }
 

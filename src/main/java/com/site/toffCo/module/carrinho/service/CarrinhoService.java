@@ -65,20 +65,22 @@ public class CarrinhoService {
 
     @Transactional
     @CacheEvict(value = "carrinhos", key = "@authUtil.getUserLogado().id") // limpa o cache
-    public CarrinhoResponseDTO addItem(UUID produtoId, Integer quantidade) {
-        if (quantidade == null || quantidade <= 0 || quantidade > 1000) {
+    public CarrinhoResponseDTO addItem(UUID produtoId, BigDecimal quantidade) {
+        if (quantidade == null
+                || quantidade.compareTo(BigDecimal.ZERO) <= 0
+                || quantidade.compareTo(BigDecimal.valueOf(1000)) > 1000) {
             throw new QuantidadInvalid("Quantidade deve ser maior que zero");
         }
         Produto produtoEstoque = produtoRepository.findByIdForUpdate(produtoId)
                 .orElseThrow(() -> new ProductNotFound("Produto nao encontrado"));
         //validação de estoque
-        if(produtoEstoque.getEstoque() < quantidade) {
+        if (produtoEstoque.getEstoque().compareTo(quantidade) < 0) {
             log.warn("Estoque insuficiente para o produto: {}, novo estoque={}, solicitado={}",
                     produtoId, produtoEstoque.getEstoque(), quantidade);
             throw new QuantidadInvalid("Quantidade insuficiente para a compra");
         }
 
-        produtoEstoque.setEstoque(produtoEstoque.getEstoque() - quantidade);
+        produtoEstoque.setEstoque(produtoEstoque.getEstoque().subtract(quantidade));
         produtoRepository.save(produtoEstoque);
         log.info("Estoque atualizado: produto={}, novo estoque={}",
                 produtoId, produtoEstoque.getEstoque());
@@ -99,7 +101,7 @@ public class CarrinhoService {
                     return itemCarrinho;
                 });
 
-        item.setQuantidade(item.getQuantidade() + quantidade);
+        item.setQuantidade(item.getQuantidade() + quantidade.intValue());
         item.setPrice(produto.getPrice());
         // 🔥 ADICIONE ISSO: Recalcula o valor total do carrinho somando os itens ativos
         BigDecimal total = carrinho.getItens().stream()
@@ -130,7 +132,7 @@ public class CarrinhoService {
         Produto produto = produtoRepository.findByIdForUpdate(itemParaRemover.getProduto().getId())
                 .orElseThrow(() -> new ProductNotFound("Produto não encontrado"));
 
-        produto.setEstoque(produto.getEstoque() + itemParaRemover.getQuantidade());
+        produto.setEstoque(produto.getEstoque().add(BigDecimal.valueOf(itemParaRemover.getQuantidade())));
         produtoRepository.save(produto);
 
         log.info("Estoque devolvido: produto={}, quantidade devolvida={}, novo estoque={}",
@@ -168,7 +170,7 @@ public class CarrinhoService {
         }
 
         int quantidadeAtual = item.getQuantidade();
-        int diferenca =  novaQuantidade - quantidadeAtual;
+        int diferenca = novaQuantidade - quantidadeAtual;
 
         if (diferenca == 0) {
             return mapper.toDto(carrinho);
@@ -179,12 +181,12 @@ public class CarrinhoService {
         );
 
         if (diferenca > 0) {
-            if (produtoEstoque.getEstoque() < diferenca) {
+            if (produtoEstoque.getEstoque().compareTo(BigDecimal.valueOf(diferenca)) < 0) {
                 throw new QuantidadInvalid("Quantidade do produto invalida");
             }
-            produtoEstoque.setEstoque(produtoEstoque.getEstoque() - diferenca);
+            produtoEstoque.setEstoque(produtoEstoque.getEstoque().subtract(BigDecimal.valueOf(diferenca)));
         } else {
-            produtoEstoque.setEstoque(produtoEstoque.getEstoque() + Math.abs(diferenca));
+            produtoEstoque.setEstoque(produtoEstoque.getEstoque().add(BigDecimal.valueOf(Math.abs(diferenca))));
         }
 
         produtoRepository.save(produtoEstoque);
