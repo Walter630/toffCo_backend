@@ -1,5 +1,6 @@
 package com.site.toffCo.module.produto.service;
 
+import com.site.toffCo.module.codigoBarras.service.CodigoBarrasServices;
 import com.site.toffCo.module.produto.dto.ProdutoRequestDTO;
 import com.site.toffCo.module.produto.dto.ProdutoResponseDTO;
 import com.site.toffCo.module.produto.dto.Status;
@@ -14,14 +15,18 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.domain.Specification;
-import static org.mockito.ArgumentMatchers.any;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import com.site.toffCo.module.odoo.event.ProductChangedEvent;
 
 @ExtendWith(MockitoExtension.class)
 class ProdutoServiceTest {
@@ -29,6 +34,10 @@ class ProdutoServiceTest {
     private ProdutoRepository produtoRepository;
     @Mock
     private ProdutoMapper produtoMapper;
+    @Mock
+    private CodigoBarrasServices  codigoBarrasServices;
+    @Mock
+    private ApplicationEventPublisher publisher;
     @InjectMocks
     private ProdutoService produtoService;
 
@@ -40,30 +49,68 @@ class ProdutoServiceTest {
 
     @Test
     @DisplayName("Deve Criar um produto")
-    void create() {
+    void create() throws Exception {
         Produto produto = new Produto();
+        produto.setId(id);
         produto.setName("filamento");
-        produto.setDescription("descriçao de filamento");
+        produto.setDescription("descrição de filamento");
         produto.setPrice(BigDecimal.valueOf(80.99));
         produto.setCategoria("filamento");
         produto.setImage("twste");
-        produto.setEstoque(BigDecimal.valueOf(1));
+        produto.setEstoque(BigDecimal.ONE);
 
-        Mockito.when(produtoMapper.toEntity(produtodto)).thenReturn(produto);
-        Mockito.when(produtoRepository.save(produto)).thenReturn(produto);
-        Mockito.when(produtoMapper.toDto(produto)).thenReturn(produtoResponseDTO);
+        Mockito.when(produtoMapper.toEntity(produtodto))
+                .thenReturn(produto);
 
-        ProdutoResponseDTO responseDTO = produtoService.create(produtodto);
+        Mockito.when(produtoRepository.save(produto))
+                .thenReturn(produto);
+
+        Mockito.when(
+                codigoBarrasServices.gerarCodigoEAN13(id)
+        ).thenReturn("7896983662679");
+
+        Mockito.when(
+                codigoBarrasServices.gerarImagemCodigoBarras("7896983662679")
+        ).thenReturn(new byte[]{1, 2, 3});
+
+        Mockito.when(produtoMapper.toDto(produto))
+                .thenReturn(produtoResponseDTO);
+
+        ProdutoResponseDTO responseDTO =
+                produtoService.create(produtodto);
+
         assertNotNull(responseDTO);
         assertEquals("filamento", responseDTO.name());
-        assertEquals("descriçao de filamento", responseDTO.description());
-        assertEquals(BigDecimal.valueOf(80), responseDTO.price());
+        assertEquals(
+                "descriçao de filamento",
+                responseDTO.description()
+        );
+        assertEquals(
+                BigDecimal.valueOf(80),
+                responseDTO.price()
+        );
         assertEquals("twste", responseDTO.image());
         assertEquals(2, responseDTO.estoque());
 
-        Mockito.verify(produtoMapper).toEntity(produtodto);
-        Mockito.verify(produtoRepository, Mockito.times(1)).save(produto);
-        Mockito.verify(produtoMapper).toDto(produto);
+        Mockito.verify(produtoMapper)
+                .toEntity(produtodto);
+
+        Mockito.verify(
+                produtoRepository,
+                Mockito.times(2)
+        ).save(produto);
+
+        Mockito.verify(codigoBarrasServices)
+                .gerarCodigoEAN13(id);
+
+        Mockito.verify(codigoBarrasServices)
+                .gerarImagemCodigoBarras("7896983662679");
+
+        Mockito.verify(publisher)
+                .publishEvent(any(ProductChangedEvent.class));
+
+        Mockito.verify(produtoMapper)
+                .toDto(produto);
     }
 
     @Test
@@ -74,25 +121,54 @@ class ProdutoServiceTest {
 
     @Test
     void findAll() {
-
         ProductQueryFilter filter = new ProductQueryFilter();
+
         Produto produto = new Produto();
         produto.setName("filamento");
         produto.setPrice(BigDecimal.valueOf(80.99));
 
-        ProdutoResponseDTO produtoResponseDTO = new ProdutoResponseDTO(id,"filamento", "descriçao de filamento", "twste","FILAMENTOS", BigDecimal.valueOf(80), 2, "", Status.ATIVO, "212233333", "PLA");
+        ProdutoResponseDTO responseEsperado =
+                new ProdutoResponseDTO(
+                        id,
+                        "filamento",
+                        "descriçao de filamento",
+                        "twste",
+                        "FILAMENTOS",
+                        BigDecimal.valueOf(80),
+                        2,
+                        "",
+                        Status.ATIVO,
+                        "212233333",
+                        "PLA"
+                );
 
-        Mockito.when(produtoRepository.findAll(any(Specification.class))).thenReturn(List.of(produto));
-        Mockito.when(produtoMapper.toDto(produto)).thenReturn(produtoResponseDTO);
+        List<Produto> produtos = List.of(produto);
+        List<ProdutoResponseDTO> dtos =
+                List.of(responseEsperado);
 
-        List<ProdutoResponseDTO> responseDTO = produtoService.findAll(filter);
+        Mockito.when(
+                produtoRepository.findAll(any(Specification.class))
+        ).thenReturn(produtos);
+
+        Mockito.when(
+                produtoMapper.toDto(produtos)
+        ).thenReturn(dtos);
+
+        List<ProdutoResponseDTO> responseDTO =
+                produtoService.findAll(filter);
 
         assertNotNull(responseDTO);
         assertEquals(1, responseDTO.size());
-        assertEquals("filamento", responseDTO.get(0).name());
+        assertEquals(
+                "filamento",
+                responseDTO.getFirst().name()
+        );
 
-        Mockito.verify(produtoRepository).findAll(any(Specification.class));
-        Mockito.verify(produtoMapper).toDto(produto);
+        Mockito.verify(produtoRepository)
+                .findAll(any(Specification.class));
+
+        Mockito.verify(produtoMapper)
+                .toDto(produtos);
     }
 
     @Test

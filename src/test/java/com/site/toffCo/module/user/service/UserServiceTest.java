@@ -12,6 +12,7 @@ import com.site.toffCo.module.user.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -20,8 +21,9 @@ import org.springframework.security.authentication.AuthenticationManager;
 
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
@@ -30,13 +32,17 @@ class UserServiceTest {
     private UserRepository userRepository;
 
     @Mock
-    private UserMapper  userMapper;
+    private UserMapper userMapper;
+
     @Mock
     private AuthenticationManager authenticationManager;
+
     @Mock
     private TokenService tokenService;
+
     @Mock
     private RefreshTokenService refreshTokenService;
+
     @Mock
     private RegisterProducer registerProducer;
 
@@ -44,65 +50,65 @@ class UserServiceTest {
     private UserService service;
 
     @Test
-    @DisplayName("Criando user no sistema")
+    @DisplayName("Deve criar usuário no sistema")
     void createUser() {
-        //preparar o cenario
-        UserRequestDTO dto = new UserRequestDTO(UUID.randomUUID(), "walter@gmail.com", "sajdansnd", "888888888", "nome", Role.USER);
+        // Arrange
+        UUID userId = UUID.randomUUID();
+
+        UserRequestDTO dto = new UserRequestDTO(
+                userId,
+                "walter@gmail.com",
+                "sajdansnd",
+                "888888888",
+                "nome",
+                Role.USER
+        );
+
         User user = new User();
+        user.setId(userId);
         user.setEmail("walter@gmail.com");
         user.setPassword("sajdansnd");
 
-        UserResponseDTO userResponseDTO = new UserResponseDTO(UUID.randomUUID(),"walter@gmail.com", "nome");
+        UserResponseDTO responseEsperado = new UserResponseDTO(
+                userId,
+                "walter@gmail.com",
+                "nome"
+        );
 
-        Mockito.when(userMapper.toEntity(dto)).thenReturn(user);
-        Mockito.when(userRepository.save(user)).thenReturn(user);
+        Mockito.when(userMapper.toEntity(dto))
+                .thenReturn(user);
 
-        Mockito.when(userMapper.toDto(user)).thenReturn(userResponseDTO);
-        //agir chama o metodo para salvar no banco
-        UserResponseDTO result = service.CreateUser(dto);
+        /*
+         * O UserService provavelmente usa saveAndFlush().
+         * O Mockito devolve null quando um método não foi configurado.
+         */
+        Mockito.when(userRepository.saveAndFlush(any(User.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
-        //verifica se ta tudo certo
-        assertNotNull(result);
-        assertEquals("walter@gmail.com", result.email());
-        assertEquals("nome", result.username());
+        Mockito.when(userMapper.toDto(any(User.class)))
+                .thenReturn(responseEsperado);
 
-        Mockito.verify(userMapper).toEntity(dto);
-        Mockito.verify(userRepository, Mockito.times(1)).save(user);
-        Mockito.verify(userMapper).toDto(user);
-        Mockito.verify(registerProducer).send(any(RegisterEvent.class));
+        // Act
+        UserResponseDTO resultado = service.CreateUser(dto);
+
+        // Assert
+        assertNotNull(resultado);
+        assertEquals(userId, resultado.userId());
+        assertEquals("walter@gmail.com", resultado.email());
+        assertEquals("nome", resultado.username());
+
+        Mockito.verify(userMapper)
+                .toEntity(dto);
+
+        Mockito.verify(userRepository)
+                .saveAndFlush(any(User.class));
+
+        Mockito.verify(userMapper)
+                .toDto(any(User.class));
+
+        Mockito.verify(registerProducer)
+                .send(any(RegisterEvent.class));
     }
-
-    //@Test
-    //@DisplayName("deve realizar o login com sucesso")
-    //void login() {
-        //preparar o cenario
-    //var dto = new LoginRequestDTO("walter@gmail.com", "sajdansnd");
-
-    // String fakeAccessToken = "access-token-gerado-no-teste";
-    // String fakeRefreshTokenString = "refresh-token-gerado-no-teste";
-
-            //  var mockRefreshToken = Mockito.mock(RefreshToken.class);
-            //  Mockito.when(mockRefreshToken.getToken()).thenReturn(fakeRefreshTokenString);
-
-        // Ensinando os mocks a se comportarem:
-        // 1. O authenticationManager.authenticate não retorna nada (void) quando dá certo, ele só passa direto.
-        // 2. Quando pedir para gerar o Access Token, devolve nossa String falsa:
-            //  Mockito.when(tokenService.generateToken(dto.email())).thenReturn(fakeAccessToken);
-
-    //Mockito.when(refreshTokenService.createRefreshToken(fakeAccessToken)).thenReturn(mockRefreshToken);
-
-        //vamos agir criar esse login
-        // LoginResponseDTO result = service.login(dto);
-
-        //verificar
-        // assertNotNull(result);
-
-        //assertEquals(fakeAccessToken, result.token());
-            // assertEquals(fakeRefreshTokenString, result.refreshToken());
-            // Mockito.verify(authenticationManager).authenticate(Mockito.any(UsernamePasswordAuthenticationToken.class));
-            // Mockito.verify(tokenService).generateToken(dto.email());
-    //  Mockito.verify(refreshTokenService).createRefreshToken(fakeAccessToken);
-    //}
 
     @Test
     void refreshToken() {

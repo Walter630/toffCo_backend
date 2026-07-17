@@ -1,6 +1,6 @@
 package com.site.toffCo.module.odoo.client;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.site.toffCo.module.odoo.dto.OdooProductRequestDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
