@@ -55,8 +55,7 @@ public class OdooProductClient {
                 "fields", List.of(
                         "id",
                         "name",
-                        "barcode",
-                        "product_tmpl_id"
+                        "barcode"
                 ),
                 "limit", 1
         );
@@ -68,7 +67,7 @@ public class OdooProductClient {
 
         JsonNode response = restClient
                 .post()
-                .uri("/json/2/product.product/search_read")
+                .uri("/json/2/product.template/search_read")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
@@ -167,7 +166,7 @@ public class OdooProductClient {
 
         JsonNode response = restClient
                 .post()
-                .uri("/json/2/product.product/write")
+                .uri("/json/2/product.template/write")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
@@ -178,9 +177,9 @@ public class OdooProductClient {
                 response
         );
 
-        if (response == null ||
-                response.isNull() ||
-                !response.asBoolean(false)) {
+        if (response == null
+                || response.isNull()
+                || !response.asBoolean(false)) {
 
             throw new IllegalStateException(
                     "Odoo não confirmou a atualização do produto "
