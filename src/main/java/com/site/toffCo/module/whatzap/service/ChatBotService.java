@@ -1,6 +1,7 @@
 package com.site.toffCo.module.whatzap.service;
 
 import com.site.toffCo.module.whatzap.dto.ChatState;
+import com.site.toffCo.module.whatzap.dto.ChatStatus;
 import com.site.toffCo.module.whatzap.dto.SendMessageRequest;
 import com.site.toffCo.module.whatzap.session.WhatsappSession;
 import com.site.toffCo.module.whatzap.session.WhatsappSessionStore;
@@ -72,10 +73,13 @@ public class ChatBotService {
 
         session.setLastMessageId(messageId);
 
+        // RESET: volta pro menu
         if (messageText != null && RESET_COMMAND.equalsIgnoreCase(messageText.trim())) {
             session.setHumanAssigned(false);
             session.setCurrentState(MENU_PRINCIPAL);
             session.setCurrentPage(1);
+            // Se tava em atendimento humano e digitou "menu", libera pro bot
+            // Mas mantém resolvedBy como estava (se já foi HUMANO, continua HUMANO)
             sessionStore.save(session);
 
             if (sendToWhatsapp) {
@@ -104,6 +108,7 @@ public class ChatBotService {
         if (sendToWhatsapp && responseText != null && !responseText.isBlank()) {
             sendResponseClient(whatsappId, responseText);
         }
+
         sessionStore.save(session);
         return responseText;
     }
@@ -170,13 +175,11 @@ public class ChatBotService {
         }
         session.setHumanAssigned(true);
         session.setCurrentState(ATENDIMENTO_HUMANO);
-
-        notificarGerente(
-                session.getWhatsappId(),
-                session.getAttendanceSubject(),
-                text
-        );
-
+        session.setStatus(ChatStatus.PENDING);        // ← NOVO
+        session.setHumanAssingnedAt(Instant.now());    // ← NOVO
+        session.setLastMessage(text);                 // ← NOVO
+        session.setResolvedBy("HUMANO");
+        notificarGerente(session.getWhatsappId(), session.getAttendanceSubject(), text);
         return BotMessages.WAITING_ATTENDANT_WITH_LINK;
     }
 
@@ -198,10 +201,18 @@ public class ChatBotService {
         );
 
         SendMessageRequest request = new SendMessageRequest(
-                "553484114981",
+                "553488560330",
                 messageGerente,
                 2200
         );
         evolutionApiClient.sendMessage(request);
+    }
+    public void updateLastMessageIfHumanAssigned(String whatsappId, String messageText) {
+        sessionStore.findByWhatsappId(whatsappId).ifPresent(session -> {
+            if (session.isHumanAssigned()) {
+                session.setLastMessage(messageText);
+                sessionStore.save(session);
+            }
+        });
     }
 }
