@@ -17,7 +17,6 @@ public class WhatzapController {
     private final ChatBotService chatBotService;
     private final AttendanceQueueService queueService;
 
-    // NÚMERO DO ATENDENTE/GERENTE (pode vir de config/env)
     private static final String ATTENDANT_NUMBER = "553488560330";
 
     @PostMapping("/receive")
@@ -32,6 +31,14 @@ public class WhatzapController {
         String remoteJid = payload.data().key().remoteJid();
         String text = payload.data().message().text();
 
+        // Se for @lid, pega o número real do remoteJidAlt
+        if (remoteJid.endsWith("@lid")) {
+            remoteJid = payload.data().key().remoteJidAlt();
+            if (remoteJid == null || !remoteJid.endsWith("@s.whatsapp.net")) {
+                return ResponseEntity.ok().build();
+            }
+        }
+
         if (text == null || text.isBlank() || !remoteJid.endsWith("@s.whatsapp.net")) {
             return ResponseEntity.ok().build();
         }
@@ -39,35 +46,23 @@ public class WhatzapController {
         String number = remoteJid.replace("@s.whatsapp.net", "");
         boolean isFromMe = Boolean.TRUE.equals(payload.data().key().fromMe());
 
-        // ─── DETECÇÃO: MENSAGEM DO ATENDENTE (fromMe) ─────────────
         if (isFromMe) {
-            // Se o atendente mandou um comando tipo /pendentes, /finalizar...
             if (number.equals(ATTENDANT_NUMBER) && text.startsWith("/")) {
                 String response = queueService.handleAttendantCommand(number, text);
                 if (response != null) {
-                    // Responde no próprio chat do atendente (eco do comando)
                     chatBotService.sendResponseClient(number, response);
                 }
                 return ResponseEntity.ok().build();
             }
-
-            // Se não é comando, pode ser intervenção humana normal
             chatBotService.handlePossibleHumanIntervention(number);
             return ResponseEntity.ok().build();
         }
 
-        // ─── MENSAGEM DO CLIENTE ───────────────────────────────────
         String messageId = payload.data().key().id();
-
-        // Se cliente está em atendimento humano, atualiza a última msg no Redis
-        // (pro preview do dashboard e dos comandos /pendentes)
         chatBotService.updateLastMessageIfHumanAssigned(number, text);
-
         chatBotService.processIncomingMessage(number, text, messageId);
         return ResponseEntity.ok().build();
     }
-
-    // ─── ROTAS DO DASHBOARD ──────────────────────────────────────
 
     @GetMapping("/queue")
     public ResponseEntity<?> getQueue() {
@@ -86,8 +81,6 @@ public class WhatzapController {
         boolean ok = queueService.releaseSession(clientNumber);
         return ok ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
     }
-
-    // ... simulate permanece igual
 
     @PostMapping("/simulate")
     public ResponseEntity<Map<String, Object>> simulateMessage(@RequestBody SimulationRequest request) {
