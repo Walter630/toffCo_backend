@@ -64,9 +64,9 @@ public class SecurityConfig {
 
                         .requestMatchers(
                                 "/bot-test.html",
-                                "/webhook/whatsapp/receive",
-                                "/webhook/whatsapp/simulate",
-                                "/webhook/set/ToffCoBot",
+                                "/api/webhook/whatsapp/receive",
+                                "/api/webhook/whatsapp/simulate",
+                                "/api/webhook/set/ToffCoBot",
                                 "/instance/create",
                                 "/api/webhooks/odoo/**"
                         ).permitAll()
