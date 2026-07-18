@@ -157,6 +157,11 @@ public class SecurityFilter extends OncePerRequestFilter {
 
         return path.equals("/api/auth/login")
                 || path.equals("/api/auth/register")
-                || path.equals("/api/auth/refresh_token");
+                || path.equals("/api/auth/refresh_token")
+                // Webhooks da Evolution API e Odoo
+                || path.startsWith("/api/webhook/")
+                || path.startsWith("/api/webhooks/")
+                || path.startsWith("/instance/")
+                || path.equals("/bot-test.html");
     }
 }
