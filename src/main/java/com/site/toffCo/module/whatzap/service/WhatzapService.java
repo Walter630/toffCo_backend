@@ -24,6 +24,10 @@ public class WhatzapService {
        this.restClient = RestClient.builder()
                .baseUrl(baseUrl)
                .defaultHeader("apikey", apiKey)
+               .requestFactory(new org.springframework.http.client.SimpleClientHttpRequestFactory() {{
+                   setConnectTimeout(5000);
+                   setReadTimeout(5000);
+               }})
                .build();
    }
 

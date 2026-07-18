@@ -15,5 +15,5 @@ spring:
 evolution:
   api:
     url: http://evolution-api:8080
-    instance: ToffCoBot
+    instance: Bot_toffBrasil
     key: i1JkRIzEGP+Zg5cwMXwn0AMY/mCGoJkMHv9H2vw6nXw=

@@ -65,7 +65,7 @@ server:
 evolution:
   api:
     url: ${EVOLUTION_API_URL:http://localhost:8080}
-    instance: ${EVOLUTION_API_INSTANCE:ToffCoBot}
+    instance: ${EVOLUTION_API_INSTANCE:Bot_toffBrasil}
     key: ${EVOLUTION_API_KEY:KeyExemplo_teste_naoVali_da}
 
 whatsapp:
