@@ -3,6 +3,7 @@ package com.site.toffCo.module.whatzap.controller;
 import com.site.toffCo.module.whatzap.dto.WebhookPayload;
 import com.site.toffCo.module.whatzap.service.AttendanceQueueService;
 import com.site.toffCo.module.whatzap.service.ChatBotService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,8 +20,9 @@ public class WhatzapController {
 
     private static final String ATTENDANT_NUMBER = "553488560330";
 
-    @PostMapping("/receive")
-    public ResponseEntity<Void> receiveMessage(@RequestBody WebhookPayload payload) {
+    @PostMapping("/receive/**")
+    public ResponseEntity<Void> receiveMessage(@RequestBody WebhookPayload payload, HttpServletRequest request) {
+        String path = request.getRequestURI();
         if (payload.data() == null
                 || payload.data().key() == null
                 || payload.data().key().remoteJid() == null
