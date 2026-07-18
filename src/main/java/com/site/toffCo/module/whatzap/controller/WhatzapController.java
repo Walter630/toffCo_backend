@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/webhook/whatsapp")
+@RequestMapping("/api/webhook/whatsapp")
 @RequiredArgsConstructor
 public class WhatzapController {
 
@@ -18,7 +18,7 @@ public class WhatzapController {
     private final AttendanceQueueService queueService;
 
     // NÚMERO DO ATENDENTE/GERENTE (pode vir de config/env)
-    private static final String ATTENDANT_NUMBER = "553484114981";
+    private static final String ATTENDANT_NUMBER = "553488560330";
 
     @PostMapping("/receive")
     public ResponseEntity<Void> receiveMessage(@RequestBody WebhookPayload payload) {
