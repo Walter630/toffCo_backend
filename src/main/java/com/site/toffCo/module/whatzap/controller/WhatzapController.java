@@ -23,6 +23,11 @@ public class WhatzapController {
     @PostMapping("/receive/**")
     public ResponseEntity<Void> receiveMessage(@RequestBody WebhookPayload payload, HttpServletRequest request) {
         String path = request.getRequestURI();
+        // LOG DE DEBUG - remove depois
+        System.out.println(">>> WEBHOOK RECEBIDO: " + request.getRequestURI());
+        System.out.println(">>> PAYLOAD DATA: " + payload);
+        System.out.println(">>> PAYLOAD DATA KEY: " + (payload.data() != null ? payload.data().key() : "null"));
+        System.out.println(">>> PAYLOAD DATA MSG: " + (payload.data() != null ? payload.data().message() : "null"));
         if (payload.data() == null
                 || payload.data().key() == null
                 || payload.data().key().remoteJid() == null
