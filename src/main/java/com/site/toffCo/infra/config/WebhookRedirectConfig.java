@@ -1,4 +1,4 @@
-package com.site.toffCo.infra.config;
+/*package com.site.toffCo.infra.config;
 
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,6 +12,7 @@ import java.io.IOException;
 @Configuration
 public class WebhookRedirectConfig {
 
+    /*
     @Bean
     public FilterRegistrationBean<Filter> webhookRedirectFilter() {
         FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
@@ -34,5 +35,4 @@ public class WebhookRedirectConfig {
         registration.addUrlPatterns("/webhook/whatsapp/*");
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
         return registration;
-    }
-}
+    }*/

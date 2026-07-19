@@ -35,6 +35,11 @@ public class SecurityFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
+        String path = request.getServletPath();
+        if (path.startsWith("/webhook/whatsapp/") || path.startsWith("/api/webhook/")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         String token = recuperarToken(request);
 
