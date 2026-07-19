@@ -17,7 +17,7 @@ public class BotMessages {
 
     public static final String WELCOME_MENU =
             "Olá! 👋 Seja muito bem-vindo à *Toff Brasil*!\n\n" +
-                    "Eu sou o *Alex*, atendente virtual da Toff. Vou agilizar seu atendimento por aqui.\n\n" +
+                    "Eu sou a *Carol*, atendente virtual da Toff. Vou agilizar seu atendimento por aqui.\n\n" +
                     "1️⃣ *Catálogo de Filamentos*\n" +
                     "2️⃣ *Catálogo de Produtos*\n" +
                     "3️⃣ *Máquinas*\n" +
