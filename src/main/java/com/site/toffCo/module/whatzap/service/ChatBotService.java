@@ -7,10 +7,12 @@ import com.site.toffCo.module.whatzap.session.WhatsappSession;
 import com.site.toffCo.module.whatzap.session.WhatsappSessionStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 
 import static com.site.toffCo.module.whatzap.dto.ChatState.*;
 
@@ -24,6 +26,15 @@ public class ChatBotService {
 
     private final WhatsappSessionStore sessionStore;
     private final WhatzapService evolutionApiClient;
+
+    /*
+     * Número do atendente/gerente que recebe notificações do bot.
+     * Configurado em application.yaml: whatsapp.attendant-number
+     */
+    @Value("${whatsapp.attendant-number:553488560330}")
+    private String attendantNumber;
+
+    // ─── API PÚBLICA ──────────────────────────────────────────────
 
     public void sendResponseClient(String numberClient, String textResponse) {
         SendMessageRequest request = new SendMessageRequest(
@@ -63,23 +74,37 @@ public class ChatBotService {
         return processIncomingMessage(whatsappId, messageText, messageId, false);
     }
 
-    private String processIncomingMessage(String whatsappId, String messageText, String messageId, boolean sendToWhatsapp) {
+    public void updateLastMessageIfHumanAssigned(String whatsappId, String messageText) {
+        sessionStore.findByWhatsappId(whatsappId).ifPresent(session -> {
+            if (session.isHumanAssigned()) {
+                session.setLastMessage(messageText);
+                sessionStore.save(session);
+            }
+        });
+    }
+
+    // ─── PROCESSAMENTO INTERNO ────────────────────────────────────
+
+    private String processIncomingMessage(
+            String whatsappId,
+            String messageText,
+            String messageId,
+            boolean sendToWhatsapp
+    ) {
         WhatsappSession session = sessionStore.findByWhatsappId(whatsappId)
                 .orElseGet(() -> WhatsappSession.newSession(whatsappId));
 
+        // Deduplicação: ignora mensagem que já foi processada
         if (messageId != null && messageId.equals(session.getLastMessageId())) {
             return null;
         }
-
         session.setLastMessageId(messageId);
 
-        // RESET: volta pro menu
+        // Comando de reset: qualquer usuário pode digitar "menu" para voltar ao início
         if (messageText != null && RESET_COMMAND.equalsIgnoreCase(messageText.trim())) {
             session.setHumanAssigned(false);
             session.setCurrentState(MENU_PRINCIPAL);
             session.setCurrentPage(1);
-            // Se tava em atendimento humano e digitou "menu", libera pro bot
-            // Mas mantém resolvedBy como estava (se já foi HUMANO, continua HUMANO)
             sessionStore.save(session);
 
             if (sendToWhatsapp) {
@@ -88,21 +113,27 @@ public class ChatBotService {
             return BotMessages.WELCOME_MENU;
         }
 
+        // Se está em atendimento humano, bot não interfere
         if (session.isHumanAssigned()) {
             sessionStore.save(session);
             return null;
         }
 
+        /*
+         * Roteamento por estado atual da sessão.
+         * Switch expression exaustivo — o compilador garante que todos os
+         * casos do enum ChatState estão cobertos.
+         */
         String responseText = switch (session.getCurrentState()) {
-            case MENU_PRINCIPAL -> handleMenuPrincipal(session, messageText);
-            case CATALOGO -> handleCatalogo(session, messageText, "PRODUTOS");
-            case FILAMENTO -> handleCatalogo(session, messageText, "FILAMENTOS");
-            case MAQUINAS -> handleCatalogo(session, messageText, "MAQUINAS");
-            case ACESSORIOS ->  handleCatalogo(session, messageText, "ACESSORIOS");
-            case IMPRESSORAS -> handleCatalogo(session, messageText, "IMPRESSORAS");
-            case ASSUNTO_ATENDIMENTO -> handleAssuntoAtendimento(session, messageText);
+            case MENU_PRINCIPAL       -> handleMenuPrincipal(session, messageText);
+            case CATALOGO             -> handleCatalogo(session, messageText, "PRODUTOS");
+            case FILAMENTO            -> handleCatalogo(session, messageText, "FILAMENTOS");
+            case MAQUINAS             -> handleCatalogo(session, messageText, "MAQUINAS");
+            case ACESSORIOS           -> handleCatalogo(session, messageText, "ACESSORIOS");
+            case IMPRESSORAS          -> handleCatalogo(session, messageText, "IMPRESSORAS");
+            case ASSUNTO_ATENDIMENTO  -> handleAssuntoAtendimento(session, messageText);
             case DESCRICAO_ATENDIMENTO -> handleDescricaoAtendimento(session, messageText);
-            case ATENDIMENTO_HUMANO -> null;
+            case ATENDIMENTO_HUMANO   -> null;
         };
 
         if (sendToWhatsapp && responseText != null && !responseText.isBlank()) {
@@ -113,33 +144,22 @@ public class ChatBotService {
         return responseText;
     }
 
-    private String handleMenuPrincipal(WhatsappSession session, String text) {
-        if ("1".equals(text)) {
-            session.setCurrentState(FILAMENTO);
-            return BotMessages.getCatalogLink("FILAMENTOS");
-        }
-        else if ("2".equals(text)) {
-            session.setCurrentState(CATALOGO);
-            return BotMessages.getCatalogLink("PRODUTOS");
-        }
-        else if ("3".equals(text)) {
-            session.setCurrentState(MAQUINAS);
-            return BotMessages.getCatalogLink("MAQUINAS");
-        }
-        else if ("4".equals(text)) {
-            session.setCurrentState(ACESSORIOS);
-            return BotMessages.getCatalogLink("ACESSORIOS");
-        }
-        else if ("5".equals(text)) {
-            session.setCurrentState(IMPRESSORAS);
-            return BotMessages.getCatalogLink("IMPRESSORAS");
-        }
-        else if ("6".equals(text)) {
-            session.setCurrentState(ASSUNTO_ATENDIMENTO);
-            return BotMessages.ATTENDANCE_SUBJECT_MENU;
-        }
+    // ─── HANDLERS DE ESTADO ───────────────────────────────────────
 
-        return BotMessages.INVALID_OPTION + "\n\n" + BotMessages.WELCOME_MENU;
+    private String handleMenuPrincipal(WhatsappSession session, String text) {
+        /*
+         * Switch expression (Java 14+ estável): substitui if/else encadeados.
+         * Cada case é uma expressão — sem fall-through acidental, sem return espalhado.
+         */
+        return switch (text) {
+            case "1" -> { session.setCurrentState(FILAMENTO);           yield BotMessages.getCatalogLink("FILAMENTOS"); }
+            case "2" -> { session.setCurrentState(CATALOGO);            yield BotMessages.getCatalogLink("PRODUTOS"); }
+            case "3" -> { session.setCurrentState(MAQUINAS);            yield BotMessages.getCatalogLink("MAQUINAS"); }
+            case "4" -> { session.setCurrentState(ACESSORIOS);          yield BotMessages.getCatalogLink("ACESSORIOS"); }
+            case "5" -> { session.setCurrentState(IMPRESSORAS);         yield BotMessages.getCatalogLink("IMPRESSORAS"); }
+            case "6" -> { session.setCurrentState(ASSUNTO_ATENDIMENTO); yield BotMessages.ATTENDANCE_SUBJECT_MENU; }
+            default  -> BotMessages.INVALID_OPTION + "\n\n" + BotMessages.WELCOME_MENU;
+        };
     }
 
     private String handleAssuntoAtendimento(WhatsappSession session, String text) {
@@ -150,37 +170,43 @@ public class ChatBotService {
             return BotMessages.BACK_TO_MENU;
         }
 
-        String object = switch (text) {
+        String subject = switch (text) {
             case "1" -> "Mentoria";
             case "2" -> "Manutenção em máquina";
             case "3" -> "Compra em atacado acima de 30kg";
             case "4" -> "Dúvida sobre catálogo, produto ou máquina";
             case "5" -> "Outro assunto";
-            default -> null;
+            default  -> null;
         };
 
-        if (object == null) {
+        if (subject == null) {
             return BotMessages.INVALID_OPTION + "\n\n" + BotMessages.ATTENDANCE_SUBJECT_MENU;
         }
 
-        session.setAttendanceSubject(object);
+        session.setAttendanceSubject(subject);
         session.setCurrentState(DESCRICAO_ATENDIMENTO);
-
-        return BotMessages.askProblemDescription(object);
+        return BotMessages.askProblemDescription(subject);
     }
 
     private String handleDescricaoAtendimento(WhatsappSession session, String text) {
         if (text == null || text.isBlank()) {
             return BotMessages.askProblemDescription(session.getAttendanceSubject());
         }
+
         session.setHumanAssigned(true);
         session.setCurrentState(ATENDIMENTO_HUMANO);
-        session.setStatus(ChatStatus.PENDING);        // ← NOVO
-        session.setHumanAssingnedAt(Instant.now());    // ← NOVO
-        session.setLastMessage(text);                 // ← NOVO
+        session.setStatus(ChatStatus.PENDING);
+        session.setHumanAssingnedAt(Instant.now());
+        session.setLastMessage(text);
         session.setResolvedBy("HUMANO");
+
+        /*
+         * notificarGerente envia WAITING_ATTENDANT_WITH_LINK ao cliente
+         * e a notificação ao gerente em paralelo via StructuredTaskScope.
+         * Retornamos null para não duplicar o envio em sendResponseClient.
+         */
         notificarGerente(session.getWhatsappId(), session.getAttendanceSubject(), text);
-        return BotMessages.WAITING_ATTENDANT_WITH_LINK;
+        return null;
     }
 
     private String handleCatalogo(WhatsappSession session, String text, String catalogo) {
@@ -192,27 +218,27 @@ public class ChatBotService {
         return BotMessages.INVALID_OPTION + "\n\n" + BotMessages.ATTENDANCE_SUBJECT_MENU;
     }
 
+    // ─── NOTIFICAÇÃO ──────────────────────────────────────────────
+
     private void notificarGerente(String whatsappId, String subject, String message) {
         log.info("Notificando gerente sobre atendimento do WhatsApp {}", whatsappId);
-        String messageGerente = BotMessages.managerNotification(
-                whatsappId,
-                subject,
-                message
-        );
 
-        SendMessageRequest request = new SendMessageRequest(
-                "553488560330",
-                messageGerente,
+        SendMessageRequest requestCliente = new SendMessageRequest(
+                whatsappId,
+                BotMessages.WAITING_ATTENDANT_WITH_LINK,
                 2200
         );
-        evolutionApiClient.sendMessage(request);
-    }
-    public void updateLastMessageIfHumanAssigned(String whatsappId, String messageText) {
-        sessionStore.findByWhatsappId(whatsappId).ifPresent(session -> {
-            if (session.isHumanAssigned()) {
-                session.setLastMessage(messageText);
-                sessionStore.save(session);
-            }
-        });
+
+        SendMessageRequest requestGerente = new SendMessageRequest(
+                attendantNumber,
+                BotMessages.managerNotification(whatsappId, subject, message),
+                2200
+        );
+
+        /*
+         * Envia as duas mensagens em paralelo via StructuredTaskScope.
+         * Tempo total = max(t_cliente, t_gerente) em vez de t_cliente + t_gerente.
+         */
+        evolutionApiClient.sendMessages(List.of(requestCliente, requestGerente));
     }
 }

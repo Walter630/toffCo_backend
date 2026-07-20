@@ -19,7 +19,7 @@ public class WhatsappSession {
     private boolean humanAssigned;
     private String lastMessageId;
     private Instant lastBotReplyAt;
-    private String AttendanceSubject;
+    private String attendanceSubject;
 
     // ─── CAMPOS NOVOS PRA FILA ─────────────────────────────
 

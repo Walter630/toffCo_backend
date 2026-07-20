@@ -2,6 +2,11 @@ package com.site.toffCo.module.whatzap.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+/*
+ * Anotações (@JsonIgnoreProperties, @JsonProperty, etc.) continuam em
+ * com.fasterxml.jackson.annotation mesmo no Jackson 3.
+ * Apenas o core da API (JsonNode, ObjectMapper, databind) migrou para tools.jackson.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record WebhookPayload(WebhookData data) {
 

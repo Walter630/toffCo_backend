@@ -3,6 +3,8 @@ package com.site.toffCo.module.whatzap.session;
 import com.site.toffCo.module.whatzap.dto.ChatState;
 import com.site.toffCo.module.whatzap.dto.ChatStatus;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -70,15 +72,14 @@ public class WhatsappSessionStore {
     // ─── LISTAR TODAS AS SESSÕES (pro dashboard e /pendentes) ──
 
     public List<WhatsappSession> findAll() {
-        Set<String> keys = redisTemplate.keys(KEY_PREFIX + "*");
-        if (keys == null || keys.isEmpty()) {
-            return Collections.emptyList();
-        }
-
         List<WhatsappSession> sessions = new ArrayList<>();
-        for (String redisKey : keys) {
-            String whatsappId = redisKey.replace(KEY_PREFIX, "");
-            findByWhatsappId(whatsappId).ifPresent(sessions::add);
+        ScanOptions options = ScanOptions.scanOptions().match(KEY_PREFIX + "*").count(100).build();
+
+        try (Cursor<String> cursor = redisTemplate.scan(options)) {
+            cursor.forEachRemaining(redisKey -> {
+                String whatsappId = redisKey.replace(KEY_PREFIX, "");
+                findByWhatsappId(whatsappId).ifPresent(sessions::add);
+            });
         }
         return sessions;
     }

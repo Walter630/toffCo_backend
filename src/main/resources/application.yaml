@@ -71,6 +71,7 @@ evolution:
 whatsapp:
   session:
     ttl: ${WHATSAPP_SESSION_TTL:PT24H}
+  attendant-number: ${WHATSAPP_ATTENDANT_NUMBER:553488560330}
 
 odoo:
   sync:

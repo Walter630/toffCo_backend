@@ -1,12 +1,13 @@
 package com.site.toffCo.module.whatzap.controller;
 
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.site.toffCo.module.whatzap.dto.WebhookPayload;
 import com.site.toffCo.module.whatzap.service.AttendanceQueueService;
 import com.site.toffCo.module.whatzap.service.ChatBotService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,12 +20,25 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class WhatsAppController {
 
-    private static final String ATTENDANT_NUMBER = "553488560330";
+    /*
+     * Número do atendente injetado via @Value para não ficar hardcoded.
+     * Configure em application.yaml:
+     *   whatsapp:
+     *     attendant-number: ${WHATSAPP_ATTENDANT_NUMBER:553488560330}
+     */
+    @Value("${whatsapp.attendant-number:553488560330}")
+    private String attendantNumber;
+
     private static final String EVENT_MESSAGES_UPSERT = "messages.upsert";
 
     private final ChatBotService chatBotService;
     private final AttendanceQueueService queueService;
-    private final JsonMapper jsonMapper;
+
+    /*
+     * ObjectMapper é o bean padrão do Jackson 3 registrado pelo Spring Boot 4.
+     * Não precisamos de JsonMapper explícito — ObjectMapper já é a API principal.
+     */
+    private final ObjectMapper objectMapper;
 
     @PostMapping("/receive")
     public ResponseEntity<Void> receiveMessage(@RequestBody JsonNode payload) {
@@ -56,7 +70,7 @@ public class WhatsAppController {
                 return ResponseEntity.ok().build();
             }
 
-            WebhookPayload.WebhookData data = jsonMapper.treeToValue(
+            WebhookPayload.WebhookData data = objectMapper.treeToValue(
                     dataNode,
                     WebhookPayload.WebhookData.class
             );
@@ -142,15 +156,15 @@ public class WhatsAppController {
                  * Quando o atendente envia comandos no chat com ele mesmo,
                  * o remoteJid pode ser o próprio número conectado.
                  */
-                if (ATTENDANT_NUMBER.equals(number) && text.startsWith("/")) {
+                if (attendantNumber.equals(number) && text.startsWith("/")) {
                     String response = queueService.handleAttendantCommand(
-                            ATTENDANT_NUMBER,
+                            attendantNumber,
                             text
                     );
 
                     if (response != null) {
                         chatBotService.sendResponseClient(
-                                ATTENDANT_NUMBER,
+                                attendantNumber,
                                 response
                         );
                     }

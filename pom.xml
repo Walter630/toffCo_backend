@@ -133,6 +133,11 @@
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.httpcomponents.client5</groupId>
+			<artifactId>httpclient5</artifactId>
+		</dependency>
+
+		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
@@ -201,6 +206,8 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
+					<!-- Necessário para rodar APIs de preview (StructuredTaskScope) em runtime -->
+					<jvmArguments>--enable-preview</jvmArguments>
 					<excludes>
 						<exclude>
 							<groupId>org.projectlombok</groupId>
@@ -235,6 +242,15 @@
 							<version>1.5.5.Final</version>
 						</path>
 					</annotationProcessorPaths>
+					<source>25</source>
+					<target>25</target>
+					<!--
+						Habilita APIs de preview do Java 25 (StructuredTaskScope, etc.).
+						Quando structured concurrency for promovida a estável, remova esta flag.
+					-->
+					<compilerArgs>
+						<arg>--enable-preview</arg>
+					</compilerArgs>
 				</configuration>
 			</plugin>
 		</plugins>
