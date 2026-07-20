@@ -1,7 +1,6 @@
 package com.site.toffCo.module.whatzap.controller;
 
-import com.site.toffCo.module.whatzap.dto.WebhookPayload;
-import jakarta.servlet.http.HttpServletRequest;
+import tools.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,10 +10,10 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class WhatzapWebhookFallbackController {
 
-    private final WhatzapController mainController;
+    private final WhatsAppController mainController;
 
     @PostMapping("/receive/**")
-    public ResponseEntity<Void> receiveMessage(@RequestBody WebhookPayload payload, HttpServletRequest request) {
-        return mainController.receiveMessage(payload, request);
+    public ResponseEntity<Void> receiveMessage(@RequestBody JsonNode request) {
+        return mainController.receiveMessage(request);
     }
 }

@@ -29,5 +29,5 @@ public abstract class ProdutoMapper {
     @Mapping(target = "price", source = "dto.price")
     @Mapping(target = "image", source = "dto.image")
     @Mapping(target = "status", source = "dto.status")
-    public abstract Produto toUpdateEntity(ProdutoRequestDTO dto, @MappingTarget Produto produto);
+    public abstract void toUpdateEntity(ProdutoRequestDTO dto, @MappingTarget Produto produto);
 }
