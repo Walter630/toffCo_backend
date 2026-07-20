@@ -149,32 +149,33 @@ public class WhatsAppController {
             );
 
             /*
-             * Mensagem enviada pelo próprio WhatsApp conectado.
+             * Mensagem enviada pelo próprio WhatsApp conectado (fromMe=true).
              */
             if (fromMe) {
                 /*
-                 * Quando o atendente envia comandos no chat com ele mesmo,
-                 * o remoteJid pode ser o próprio número conectado.
+                 * Comando do gerente — pode vir de qualquer chat onde ele digitar "/".
+                 * Ex: gerente abre o chat com o cliente e digita "/info" ou "/finalizar".
+                 *
+                 * Respondemos de volta para o gerente (attendantNumber),
+                 * não para o cliente, para não vazar o comando no chat do cliente.
                  */
-                if (attendantNumber.equals(number) && text.startsWith("/")) {
+                if (text.startsWith("/")) {
                     String response = queueService.handleAttendantCommand(
                             attendantNumber,
                             text
                     );
 
                     if (response != null) {
-                        chatBotService.sendResponseClient(
-                                attendantNumber,
-                                response
-                        );
+                        // Responde no chat do próprio gerente, não no chat do cliente
+                        chatBotService.sendResponseClient(attendantNumber, response);
                     }
 
                     return ResponseEntity.ok().build();
                 }
 
                 /*
-                 * Caso o atendente mande uma mensagem diretamente ao cliente,
-                 * o bot considera intervenção humana nessa conversa.
+                 * Atendente mandou mensagem normal (não comando) diretamente ao cliente.
+                 * Bot reconhece a intervenção humana e para de responder nessa conversa.
                  */
                 chatBotService.handlePossibleHumanIntervention(number);
 
