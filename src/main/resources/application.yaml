@@ -71,7 +71,11 @@ evolution:
 whatsapp:
   session:
     ttl: ${WHATSAPP_SESSION_TTL:PT24H}
-  attendant-number: ${WHATSAPP_ATTENDANT_NUMBER:553488560330}
+  attendant-number: ${WHATSAPP_ATTENDANT_NUMBER:}
+  # Números fixos que o bot NUNCA deve responder.
+  # Configure no .env: WHATSAPP_BLOCKED_NUMBERS=553488560330,551199999999
+  # Separe por vírgula, sem espaço. O Spring converte automaticamente para lista.
+  blocked-numbers: ${WHATSAPP_BLOCKED_NUMBERS:}
 
 odoo:
   sync:

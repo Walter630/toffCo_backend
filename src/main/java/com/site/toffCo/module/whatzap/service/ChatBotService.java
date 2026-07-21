@@ -52,18 +52,21 @@ public class ChatBotService {
     }
 
     public void handlePossibleHumanIntervention(String whatsappId) {
-        sessionStore.findByWhatsappId(whatsappId).ifPresent(session -> {
-            Instant lastReply = session.getLastBotReplyAt();
-            boolean isEchoFromBot = lastReply != null
-                    && Duration.between(lastReply, Instant.now()).getSeconds() <= BOT_ECHO_WINDOW_SECONDS;
+        // Busca ou cria a sessão — se não existe, o atendente está abrindo
+        // o chat pela primeira vez e o bot nunca deve assumir essa conversa
+        WhatsappSession session = sessionStore.findByWhatsappId(whatsappId)
+                .orElseGet(() -> WhatsappSession.newSession(whatsappId));
 
-            if (!isEchoFromBot && !session.isHumanAssigned()) {
-                session.setHumanAssigned(true);
-                session.setCurrentState(ChatState.ATENDIMENTO_HUMANO);
-                sessionStore.save(session);
-                log.info("Atendente assumiu manualmente a conversa com {}", whatsappId);
-            }
-        });
+        Instant lastReply = session.getLastBotReplyAt();
+        boolean isEchoFromBot = lastReply != null
+                && Duration.between(lastReply, Instant.now()).getSeconds() <= BOT_ECHO_WINDOW_SECONDS;
+
+        if (!isEchoFromBot && !session.isHumanAssigned()) {
+            session.setHumanAssigned(true);
+            session.setCurrentState(ChatState.ATENDIMENTO_HUMANO);
+            sessionStore.save(session);
+            log.info("Atendente assumiu manualmente a conversa com {}", whatsappId);
+        }
     }
 
     public void processIncomingMessage(String whatsappId, String messageText, String messageId) {
@@ -100,9 +103,15 @@ public class ChatBotService {
         }
         session.setLastMessageId(messageId);
 
-        // Comando de reset: qualquer usuário pode digitar "menu" para voltar ao início
+        // Comando de reset: só reseta se NÃO estiver em atendimento humano.
+        // Se estiver com humano, "menu" é ignorado pelo bot — o atendente precisa
+        // usar /finalizar para devolver o controle.
         if (messageText != null && RESET_COMMAND.equalsIgnoreCase(messageText.trim())) {
-            session.setHumanAssigned(false);
+            if (session.isHumanAssigned()) {
+                // Atendimento humano ativo: bot não interfere, nem com "menu"
+                sessionStore.save(session);
+                return null;
+            }
             session.setCurrentState(MENU_PRINCIPAL);
             session.setCurrentPage(1);
             sessionStore.save(session);
@@ -113,7 +122,7 @@ public class ChatBotService {
             return BotMessages.WELCOME_MENU;
         }
 
-        // Se está em atendimento humano, bot não interfere
+        // Se está em atendimento humano, bot silencia completamente
         if (session.isHumanAssigned()) {
             sessionStore.save(session);
             return null;
@@ -130,7 +139,6 @@ public class ChatBotService {
             case FILAMENTO            -> handleCatalogo(session, messageText, "FILAMENTOS");
             case MAQUINAS             -> handleCatalogo(session, messageText, "MAQUINAS");
             case ACESSORIOS           -> handleCatalogo(session, messageText, "ACESSORIOS");
-            case IMPRESSORAS          -> handleCatalogo(session, messageText, "IMPRESSORAS");
             case ASSUNTO_ATENDIMENTO  -> handleAssuntoAtendimento(session, messageText);
             case DESCRICAO_ATENDIMENTO -> handleDescricaoAtendimento(session, messageText);
             case ATENDIMENTO_HUMANO   -> null;
@@ -156,8 +164,7 @@ public class ChatBotService {
             case "2" -> { session.setCurrentState(CATALOGO);            yield BotMessages.getCatalogLink("PRODUTOS"); }
             case "3" -> { session.setCurrentState(MAQUINAS);            yield BotMessages.getCatalogLink("MAQUINAS"); }
             case "4" -> { session.setCurrentState(ACESSORIOS);          yield BotMessages.getCatalogLink("ACESSORIOS"); }
-            case "5" -> { session.setCurrentState(IMPRESSORAS);         yield BotMessages.getCatalogLink("IMPRESSORAS"); }
-            case "6" -> { session.setCurrentState(ASSUNTO_ATENDIMENTO); yield BotMessages.ATTENDANCE_SUBJECT_MENU; }
+            case "5" -> { session.setCurrentState(ASSUNTO_ATENDIMENTO); yield BotMessages.ATTENDANCE_SUBJECT_MENU; }
             default  -> BotMessages.INVALID_OPTION + "\n\n" + BotMessages.WELCOME_MENU;
         };
     }

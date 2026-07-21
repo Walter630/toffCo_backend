@@ -7,7 +7,7 @@ public class BotMessages {
     private static final Map<String, String[]> CATEGORIAS = Map.of(
             "FILAMENTOS", new String[]{"filamentos", "Filamentos"},
             "PRODUTOS", new String[]{"produtos", "Produtos"},
-            "MAQUINAS", new String[]{"maquinas", "Máquinas"},
+            //"MAQUINAS", new String[]{"maquinas", "Máquinas"},
             "ACESSORIOS", new String[]{"acessorios", "Acessórios"},
             "IMPRESSORAS", new String[]{"impressoras", "Impressoras 3D"}
     );
@@ -22,8 +22,7 @@ public class BotMessages {
                     2️⃣ *Catálogo de Produtos*
                     3️⃣ *Máquinas*
                     4️⃣ *Acessórios*
-                    5️⃣ *Impressoras 3D*
-                    6️⃣ *Falar com um atendente*
+                    5️⃣ *Falar com um atendente*
                     
                     _Responda apenas com o número da opção desejada._""";
 

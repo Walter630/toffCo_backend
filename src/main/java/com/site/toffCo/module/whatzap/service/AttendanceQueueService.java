@@ -78,12 +78,17 @@ public class AttendanceQueueService {
         String arg = parts.length > 1 ? parts[1].trim() : null;
 
         return switch (cmd) {
-            case "/pendentes" -> listPendingForAttendant();
-            case "/atender" -> arg != null ? assignFromWhatsApp(arg, attendantNumber) : "❌ Use: /atender 5511999999999";
-            case "/finalizar", "/liberar" -> arg != null ? releaseFromWhatsApp(arg) : "❌ Use: /finalizar 5511999999999";
-            case "/info" -> arg != null ? showClientInfo(arg) : "❌ Use: /info 5511999999999";
-            case "/resumo" -> showAttendantSummary(attendantNumber);
-            default -> null; // não é comando, ignora
+            case "/pendentes"    -> listPendingForAttendant();
+            case "/atender"      -> arg != null ? assignFromWhatsApp(arg, attendantNumber)  : "❌ Use: /atender 5511999999999";
+            case "/finalizar",
+                 "/liberar"      -> arg != null ? releaseFromWhatsApp(arg)                  : "❌ Use: /finalizar 5511999999999";
+            case "/info"         -> arg != null ? showClientInfo(arg)                       : "❌ Use: /info 5511999999999";
+            case "/resumo"       -> showAttendantSummary(attendantNumber);
+            case "/bloquear"     -> arg != null ? blockNumber(arg)                          : "❌ Use: /bloquear 5511999999999";
+            case "/desbloquear"  -> arg != null ? unblockNumber(arg)                        : "❌ Use: /desbloquear 5511999999999";
+            case "/bloqueados"   -> showBlocklist();
+            case "/ajuda"        -> showHelp();
+            default              -> null; // não é comando, ignora
         };
     }
 
@@ -166,5 +171,49 @@ public class AttendanceQueueService {
     private String truncate(String text, int max) {
         if (text == null) return "-";
         return text.length() > max ? text.substring(0, max) + "..." : text;
+    }
+
+    private String blockNumber(String number) {
+        String clean = number.replaceAll("\\D", "");
+        sessionStore.blockNumber(clean);
+        return "🚫 Número " + clean + " bloqueado.\nO bot não vai mais responder para ele.\n\nPara desbloquear: `/desbloquear " + clean + "`";
+    }
+
+    private String unblockNumber(String number) {
+        String clean = number.replaceAll("\\D", "");
+        sessionStore.unblockNumber(clean);
+        return "✅ Número " + clean + " desbloqueado.\nO bot voltará a responder normalmente.";
+    }
+
+    private String showBlocklist() {
+        var blocked = sessionStore.getBlocklist();
+        if (blocked.isEmpty()) return "✅ Nenhum número bloqueado dinamicamente.\n\n_Números fixos do sistema não aparecem aqui._";
+
+        StringBuilder sb = new StringBuilder("🚫 *Números bloqueados*\n\n");
+        blocked.stream().sorted().forEach(n -> sb.append("• ").append(n).append("\n"));
+        sb.append("\nPara desbloquear: `/desbloquear 5511999999999`");
+        return sb.toString();
+    }
+
+    private String showHelp() {
+        return """
+                🤖 *Comandos disponíveis*
+                ━━━━━━━━━━━━━━━━━━━━
+
+                📋 *Fila de atendimento*
+                `/pendentes` — ver quem está esperando
+                `/atender [número]` — pegar um atendimento
+                `/finalizar [número]` — encerrar e devolver ao bot
+                `/info [número]` — ver detalhes do cliente
+                `/resumo` — ver seus atendimentos ativos
+
+                🚫 *Bloqueios*
+                `/bloquear [número]` — bot para de responder
+                `/desbloquear [número]` — bot volta a responder
+                `/bloqueados` — listar números bloqueados
+
+                ━━━━━━━━━━━━━━━━━━━━
+                _Números fixos (configurados no sistema) não aparecem na lista de bloqueados._
+                """;
     }
 }

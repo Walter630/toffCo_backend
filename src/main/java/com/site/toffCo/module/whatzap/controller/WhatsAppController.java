@@ -2,12 +2,13 @@ package com.site.toffCo.module.whatzap.controller;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import com.site.toffCo.infra.config.WhatsappProperties;
 import com.site.toffCo.module.whatzap.dto.WebhookPayload;
 import com.site.toffCo.module.whatzap.service.AttendanceQueueService;
 import com.site.toffCo.module.whatzap.service.ChatBotService;
+import com.site.toffCo.module.whatzap.session.WhatsappSessionStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,25 +21,18 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class WhatsAppController {
 
-    /*
-     * Número do atendente injetado via @Value para não ficar hardcoded.
-     * Configure em application.yaml:
-     *   whatsapp:
-     *     attendant-number: ${WHATSAPP_ATTENDANT_NUMBER:553488560330}
-     */
-    @Value("${whatsapp.attendant-number:553488560330}")
-    private String attendantNumber;
-
     private static final String EVENT_MESSAGES_UPSERT = "messages.upsert";
 
     private final ChatBotService chatBotService;
     private final AttendanceQueueService queueService;
-
-    /*
-     * ObjectMapper é o bean padrão do Jackson 3 registrado pelo Spring Boot 4.
-     * Não precisamos de JsonMapper explícito — ObjectMapper já é a API principal.
-     */
+    private final WhatsappSessionStore sessionStore;
+    private final WhatsappProperties whatsappProperties;
     private final ObjectMapper objectMapper;
+
+    // Número do atendente vem do properties type-safe
+    private String attendantNumber() {
+        return whatsappProperties.attendantNumber();
+    }
 
     @PostMapping("/receive")
     public ResponseEntity<Void> receiveMessage(@RequestBody JsonNode payload) {
@@ -137,6 +131,13 @@ public class WhatsAppController {
                 return ResponseEntity.ok().build();
             }
 
+            // Bloqueado estaticamente (application.yaml) ou dinamicamente (Redis)?
+            // Verifica os dois — estático tem prioridade mas ambos bloqueiam
+            if (whatsappProperties.isStaticallyBlocked(number) || sessionStore.isBlocked(number)) {
+                log.debug("Número bloqueado ignorado: {}", number);
+                return ResponseEntity.ok().build();
+            }
+
             text = text.trim();
 
             boolean fromMe = Boolean.TRUE.equals(key.fromMe());
@@ -161,13 +162,12 @@ public class WhatsAppController {
                  */
                 if (text.startsWith("/")) {
                     String response = queueService.handleAttendantCommand(
-                            attendantNumber,
+                            attendantNumber(),
                             text
                     );
 
                     if (response != null) {
-                        // Responde no chat do próprio gerente, não no chat do cliente
-                        chatBotService.sendResponseClient(attendantNumber, response);
+                        chatBotService.sendResponseClient(attendantNumber(), response);
                     }
 
                     return ResponseEntity.ok().build();
@@ -234,6 +234,25 @@ public class WhatsAppController {
     @GetMapping("/queue")
     public ResponseEntity<?> getQueue() {
         return ResponseEntity.ok(queueService.getPendingQueue());
+    }
+
+    // ─── ENDPOINTS DE BLOCKLIST ───────────────────────────────────
+
+    @PostMapping("/blocklist/{number}")
+    public ResponseEntity<?> blockNumber(@PathVariable String number) {
+        sessionStore.blockNumber(number.replaceAll("\\D", ""));
+        return ResponseEntity.ok(Map.of("blocked", number));
+    }
+
+    @DeleteMapping("/blocklist/{number}")
+    public ResponseEntity<?> unblockNumber(@PathVariable String number) {
+        sessionStore.unblockNumber(number.replaceAll("\\D", ""));
+        return ResponseEntity.ok(Map.of("unblocked", number));
+    }
+
+    @GetMapping("/blocklist")
+    public ResponseEntity<?> getBlocklist() {
+        return ResponseEntity.ok(sessionStore.getBlocklist());
     }
 
     @PostMapping("/queue/{clientNumber}/assign")

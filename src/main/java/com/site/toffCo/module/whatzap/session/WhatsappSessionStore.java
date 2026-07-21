@@ -7,15 +7,18 @@ import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 
+@Slf4j
 @Component
 public class WhatsappSessionStore {
 
     private static final String KEY_PREFIX = "toffco:whatsapp:session:";
+    private static final String BLOCKLIST_KEY = "toffco:whatsapp:blocklist";
 
     private final StringRedisTemplate redisTemplate;
     private final Duration sessionTtl;
@@ -26,6 +29,30 @@ public class WhatsappSessionStore {
     ) {
         this.redisTemplate = redisTemplate;
         this.sessionTtl = sessionTtl;
+    }
+
+    // ─── BLOCKLIST ─────────────────────────────────────────────
+    //
+    // Números nessa lista nunca recebem mensagens do bot, independente
+    // do estado da sessão. Persiste no Redis — sem reiniciar o servidor.
+
+    public void blockNumber(String number) {
+        redisTemplate.opsForSet().add(BLOCKLIST_KEY, number);
+        log.info("Número bloqueado: {}", number);
+    }
+
+    public void unblockNumber(String number) {
+        redisTemplate.opsForSet().remove(BLOCKLIST_KEY, number);
+        log.info("Número desbloqueado: {}", number);
+    }
+
+    public boolean isBlocked(String number) {
+        return Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(BLOCKLIST_KEY, number));
+    }
+
+    public Set<String> getBlocklist() {
+        Set<String> members = redisTemplate.opsForSet().members(BLOCKLIST_KEY);
+        return members != null ? Collections.unmodifiableSet(members) : Set.of();
     }
 
     // ─── BUSCAR UMA SESSÃO ─────────────────────────────────────
