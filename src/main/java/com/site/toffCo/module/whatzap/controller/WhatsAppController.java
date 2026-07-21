@@ -5,6 +5,7 @@ import tools.jackson.databind.ObjectMapper;
 import com.site.toffCo.infra.config.WhatsappProperties;
 import com.site.toffCo.module.whatzap.dto.WebhookPayload;
 import com.site.toffCo.module.whatzap.service.AttendanceQueueService;
+import com.site.toffCo.module.whatzap.service.BotMessages;
 import com.site.toffCo.module.whatzap.service.ChatBotService;
 import com.site.toffCo.module.whatzap.session.WhatsappSessionStore;
 import lombok.RequiredArgsConstructor;
@@ -80,13 +81,9 @@ public class WhatsAppController {
             WebhookPayload.WebhookKey key = data.key();
 
             String remoteJid = key.remoteJid();
-            String text = data.message().text();
+            String text      = data.message().text();
 
-            if (remoteJid == null
-                    || remoteJid.isBlank()
-                    || text == null
-                    || text.isBlank()) {
-
+            if (remoteJid == null || remoteJid.isBlank()) {
                 return ResponseEntity.ok().build();
             }
 
@@ -132,15 +129,39 @@ public class WhatsAppController {
             }
 
             // Bloqueado estaticamente (application.yaml) ou dinamicamente (Redis)?
-            // Verifica os dois — estático tem prioridade mas ambos bloqueiam
             if (whatsappProperties.isStaticallyBlocked(number) || sessionStore.isBlocked(number)) {
                 log.debug("Número bloqueado ignorado: {}", number);
                 return ResponseEntity.ok().build();
             }
 
-            text = text.trim();
-
+            /*
+             * Mensagem de mídia (áudio, imagem, vídeo, documento, sticker).
+             * O bot não consegue processar — avisa o cliente se não for fromMe,
+             * e só se o cliente não estiver em atendimento humano (o humano
+             * pode receber qualquer mídia normalmente).
+             */
             boolean fromMe = Boolean.TRUE.equals(key.fromMe());
+
+            if (!fromMe && data.message().isMedia()) {
+                boolean humanActive = chatBotService.isHumanAssigned(number);
+                if (!humanActive) {
+                    String mediaName = data.message().mediaType().friendlyName();
+                    log.debug("Mídia recebida ({}), enviando aviso para {}", mediaName, number);
+                    // Reseta pro menu principal para o cliente poder escolher
+                    // normalmente após receber a resposta — sem risco de bug de estado
+                    chatBotService.resetToMenu(number);
+                    chatBotService.sendResponseClient(number, BotMessages.unsupportedMediaMessage(mediaName));
+                }
+                // Se humano está ativo, silencia — o atendente vê a mídia diretamente no WhatsApp
+                return ResponseEntity.ok().build();
+            }
+
+            // Texto nulo ou vazio (sem ser mídia) — descarta silenciosamente
+            if (text == null || text.isBlank()) {
+                return ResponseEntity.ok().build();
+            }
+
+            text = text.trim();
 
             log.info(
                     "Mensagem recebida: number={}, fromMe={}, messageId={}",

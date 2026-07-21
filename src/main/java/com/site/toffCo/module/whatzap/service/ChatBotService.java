@@ -86,6 +86,26 @@ public class ChatBotService {
         });
     }
 
+    /** Retorna true se a sessão do número está em atendimento humano ativo. */
+    public boolean isHumanAssigned(String whatsappId) {
+        return sessionStore.findByWhatsappId(whatsappId)
+                .map(WhatsappSession::isHumanAssigned)
+                .orElse(false);
+    }
+
+    /**
+     * Reseta a sessão para MENU_PRINCIPAL sem enviar mensagem.
+     * Usado quando o cliente manda mídia — a sessão volta pro início
+     * para o próximo texto dele ser interpretado corretamente no menu.
+     */
+    public void resetToMenu(String whatsappId) {
+        WhatsappSession session = sessionStore.findByWhatsappId(whatsappId)
+                .orElseGet(() -> WhatsappSession.newSession(whatsappId));
+        session.setCurrentState(ChatState.MENU_PRINCIPAL);
+        session.setCurrentPage(1);
+        sessionStore.save(session);
+    }
+
     // ─── PROCESSAMENTO INTERNO ────────────────────────────────────
 
     private String processIncomingMessage(

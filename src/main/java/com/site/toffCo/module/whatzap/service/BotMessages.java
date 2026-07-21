@@ -120,6 +120,45 @@ public class BotMessages {
         return raw; // formato desconhecido, exibe como veio
     }
 
+    /**
+     * Mensagem enviada quando o cliente manda mídia (áudio, foto, vídeo, etc).
+     * Não menciona número de opção — o cliente pode estar em qualquer estado
+     * da sessão, então enviamos o menu junto para não causar confusão.
+     */
+    public static String unsupportedMediaMessage(String mediaName) {
+        return switch (mediaName) {
+            case "áudio 🎵" ->
+                "Oi! Recebi seu áudio 🎵, mas infelizmente ainda não consigo ouvir por aqui. 😊\n\n" +
+                "Não se preocupe! É só me *escrever* o que você precisa que eu te ajudo rapidinho.\n\n" +
+                WELCOME_MENU;
+
+            case "imagem 📷" ->
+                "Recebi sua imagem 📷, mas por enquanto não consigo visualizá-la por aqui. 😊\n\n" +
+                "Pode me *descrever em texto* o que você está vendo ou o que precisa?\n\n" +
+                WELCOME_MENU;
+
+            case "vídeo 🎬" ->
+                "Recebi seu vídeo 🎬, mas ainda não tenho como assisti-lo por aqui. 😊\n\n" +
+                "Me *conta em texto* o que você precisa que eu te atendo rapidinho!\n\n" +
+                WELCOME_MENU;
+
+            case "documento 📄" ->
+                "Recebi seu documento 📄, mas por aqui só consigo processar *mensagens de texto* por enquanto. 😊\n\n" +
+                "Se tiver alguma dúvida ou pedido, me *escreve* que eu te ajudo.\n\n" +
+                WELCOME_MENU;
+
+            case "sticker 😄" ->
+                "Haha, gostei do sticker! 😄\n\n" +
+                "Mas para eu te ajudar de verdade, precisa me *escrever* o que você precisa. 😊\n\n" +
+                WELCOME_MENU;
+
+            default ->
+                "Oi! Recebi sua mensagem, mas não consigo processar esse tipo de conteúdo por aqui. 😊\n\n" +
+                "Me *escreve em texto* o que você precisa que eu te atendo!\n\n" +
+                WELCOME_MENU;
+        };
+    }
+
     public static final String WAITING_ATTENDANT_WITH_LINK =
             "Obrigado por me explicar! ✅\n\n" +
                     "Já encaminhei seu atendimento para nossa equipe com o resumo do seu caso.\n\n" +

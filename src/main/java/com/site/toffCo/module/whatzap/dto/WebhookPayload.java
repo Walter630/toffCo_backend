@@ -18,17 +18,63 @@ public record WebhookPayload(WebhookData data) {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record WebhookMessage(
+            // ─── TEXTO ────────────────────────────────────────────────
             String conversation,
-            ExtendedTextMessage extendedTextMessage
+            ExtendedTextMessage extendedTextMessage,
+
+            // ─── MÍDIAS ───────────────────────────────────────────────
+            // A Evolution manda um objeto para cada tipo.
+            // Usamos Object porque só precisamos saber se o campo existe,
+            // não do conteúdo em si.
+            Object audioMessage,
+            Object imageMessage,
+            Object videoMessage,
+            Object documentMessage,
+            Object stickerMessage
     ) {
+        /** Retorna o texto da mensagem, ou null se for mídia/vazio. */
         public String text() {
             if (conversation != null && !conversation.isBlank()) {
                 return conversation;
             }
             return extendedTextMessage == null ? null : extendedTextMessage.text();
         }
+
+        /**
+         * Detecta o tipo de mídia recebida.
+         * Retorna o enum correspondente, ou TEXT se for mensagem de texto normal.
+         */
+        public MediaType mediaType() {
+            if (audioMessage    != null) return MediaType.AUDIO;
+            if (imageMessage    != null) return MediaType.IMAGE;
+            if (videoMessage    != null) return MediaType.VIDEO;
+            if (documentMessage != null) return MediaType.DOCUMENT;
+            if (stickerMessage  != null) return MediaType.STICKER;
+            return MediaType.TEXT;
+        }
+
+        /** Retorna true se a mensagem NÃO é texto — o bot não consegue processar. */
+        public boolean isMedia() {
+            return mediaType() != MediaType.TEXT;
+        }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record ExtendedTextMessage(String text) {}
+
+    public enum MediaType {
+        TEXT, AUDIO, IMAGE, VIDEO, DOCUMENT, STICKER;
+
+        /** Mensagem amigável para o cliente explicando o que foi recebido. */
+        public String friendlyName() {
+            return switch (this) {
+                case AUDIO    -> "áudio 🎵";
+                case IMAGE    -> "imagem 📷";
+                case VIDEO    -> "vídeo 🎬";
+                case DOCUMENT -> "documento 📄";
+                case STICKER  -> "sticker 😄";
+                case TEXT     -> "texto";
+            };
+        }
+    }
 }
