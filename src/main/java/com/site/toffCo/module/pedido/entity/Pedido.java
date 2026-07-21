@@ -1,14 +1,16 @@
 package com.site.toffCo.module.pedido.entity;
 
+import com.site.toffCo.module.itemcarrinho.entity.ItemCarrinho;
 import com.site.toffCo.module.user.entity.User;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -18,18 +20,44 @@ import java.util.UUID;
 @NoArgsConstructor
 @Table(name = "tb_pedido")
 public class Pedido {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne
+    // ─── QUEM COMPROU ─────────────────────────────────────────────
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
     private User user;
 
-    private BigDecimal total; // Use BigDecimal, nunca Float!
+    // ─── VALOR ────────────────────────────────────────────────────
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal total;
 
+    // ─── STATUS ───────────────────────────────────────────────────
+    /*
+     * Começa em AGUARDANDO_PAGAMENTO.
+     * Muda para PAGO quando o PagamentoItem confirma o pagamento.
+     * O admin pode mover para EM_SEPARACAO, ENVIADO, ENTREGUE ou CANCELADO.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PedidoStatus status = PedidoStatus.AGUARDANDO_PAGAMENTO;
+
+    // ─── ITENS DO PEDIDO ──────────────────────────────────────────
+    /*
+     * Snapshot dos itens no momento da compra.
+     * Guardamos o preço e quantidade aqui (não no carrinho),
+     * para que alterações futuras de produto não afetem pedidos antigos.
+     */
+    @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<ItemPedido> itens = new ArrayList<>();
+
+    // ─── TIMESTAMPS ───────────────────────────────────────────────
+    @CreationTimestamp
+    @Column(updatable = false)
     private LocalDateTime dataCriacao;
 
-    // Você precisará de uma lista de itens do pedido (ItemPedido)
-    // que guarde o preço unitário de cada produto naquele momento.
-
+    @UpdateTimestamp
+    private LocalDateTime dataAtualizacao;
 }

@@ -77,6 +77,10 @@ public class SecurityConfig {
                                 "/api/admin/odoo/**"
                                 ).hasRole("ADMIN")
 
+                        .requestMatchers(
+                                "/api/admin/**"
+                        ).hasRole("ADMIN")
+
                         .anyRequest().authenticated() // Bloqueia o resto
                 )
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
