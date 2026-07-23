@@ -185,11 +185,15 @@ public class ChatBotService {
     }
 
     private String handleMenuPrincipal(WhatsappSession session, String text) {
+        if (text == null || text.isBlank()) {
+            return BotMessages.WELCOME_MENU;
+        }
         /*
          * Switch expression (Java 14+ estável): substitui if/else encadeados.
          * Cada case é uma expressão — sem fall-through acidental, sem return espalhado.
          */
-        return switch (text) {
+        //trim remove os espaços invalidos do texto
+        return switch (text.trim()) {
             case "1" -> { session.setCurrentState(FILAMENTO);           yield BotMessages.getCatalogLink("FILAMENTOS"); }
             case "2" -> { session.setCurrentState(CATALOGO);            yield BotMessages.getCatalogLink("PRODUTOS"); }
             case "3" -> { session.setCurrentState(MAQUINAS);            yield BotMessages.getCatalogLink("MAQUINAS"); }
@@ -200,14 +204,17 @@ public class ChatBotService {
     }
 
     private String handleAssuntoAtendimento(WhatsappSession session, String text) {
-        if ("0".equals(text)) {
+        if (text == null || text.isBlank()) {
+            return BotMessages.ATTENDANCE_SUBJECT_MENU;
+        }
+        if ("0".equals(text.trim())) {
             session.setCurrentState(MENU_PRINCIPAL);
             session.setCurrentPage(1);
             session.setAttendanceSubject(null);
             return BotMessages.BACK_TO_MENU;
         }
 
-        String subject = switch (text) {
+        String subject = switch (text.trim()) {
             case "1" -> "Mentoria";
             case "2" -> "Manutenção em máquina";
             case "3" -> "Compra em atacado acima de 30kg";
@@ -247,12 +254,15 @@ public class ChatBotService {
     }
 
     private String handleCatalogo(WhatsappSession session, String text, String catalogo) {
+        if (text == null || text.isBlank()) {
+            return BotMessages.INVALID_OPTION + "\n\n" + BotMessages.getCatalogLink(catalogo);
+        }
         if ("0".equals(text)) {
             session.setCurrentState(MENU_PRINCIPAL);
             session.setCurrentPage(1);
             return BotMessages.BACK_TO_MENU;
         }
-        return BotMessages.INVALID_OPTION + "\n\n" + BotMessages.ATTENDANCE_SUBJECT_MENU;
+        return BotMessages.INVALID_OPTION + "\n\n" + BotMessages.getCatalogLink(catalogo);
     }
 
     // ─── NOTIFICAÇÃO ──────────────────────────────────────────────
