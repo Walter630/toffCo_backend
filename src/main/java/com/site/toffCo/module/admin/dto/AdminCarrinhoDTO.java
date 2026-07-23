@@ -16,6 +16,7 @@ public record AdminCarrinhoDTO(
         UUID userId,
         String userEmail,
         String userName,
+        String userPhone,
         int totalItens,
         BigDecimal valorTotal,
         LocalDateTime ultimaAtualizacao,
@@ -34,7 +35,7 @@ public record AdminCarrinhoDTO(
         var itensDTO = c.getItens().stream()
                 .map(i -> new AdminItemCarrinhoDTO(
                         i.getId(),
-                        i.getName(),
+                        i.getProduto() != null ? i.getProduto().getName() : "Produto #" + i.getId(),
                         i.getQuantidade(),
                         i.getPrice(),
                         i.getPrice() != null && i.getQuantidade() != null
@@ -48,6 +49,7 @@ public record AdminCarrinhoDTO(
                 c.getUser() != null ? c.getUser().getId() : null,
                 c.getUser() != null ? c.getUser().getEmail() : "—",
                 c.getUser() != null ? c.getUser().getUsername() : "—",
+                c.getUser() != null ? c.getUser().getPhone() : "—",
                 c.getItens().size(),
                 c.getValorTotal() != null ? c.getValorTotal() : BigDecimal.ZERO,
                 c.getUpdatedAt(),
