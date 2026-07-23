@@ -32,7 +32,7 @@ public class WhatsappSession {
     public static WhatsappSession newSession(String whatsappId) {
         return new WhatsappSession(
                 whatsappId,
-                ChatState.MENU_PRINCIPAL,
+                ChatState.NOVO,
                 1,
                 false,
                 null,

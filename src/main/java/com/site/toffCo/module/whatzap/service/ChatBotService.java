@@ -154,6 +154,7 @@ public class ChatBotService {
          * casos do enum ChatState estão cobertos.
          */
         String responseText = switch (session.getCurrentState()) {
+            case NOVO                 -> handleNovo(session);
             case MENU_PRINCIPAL       -> handleMenuPrincipal(session, messageText);
             case CATALOGO             -> handleCatalogo(session, messageText, "PRODUTOS");
             case FILAMENTO            -> handleCatalogo(session, messageText, "FILAMENTOS");
@@ -173,6 +174,15 @@ public class ChatBotService {
     }
 
     // ─── HANDLERS DE ESTADO ───────────────────────────────────────
+
+    /**
+     * Estado inicial da sessão: qualquer mensagem do usuário (saudação, texto livre, etc.)
+     * exibe o menu principal pela primeira vez, sem tratar como opção inválida.
+     */
+    private String handleNovo(WhatsappSession session) {
+        session.setCurrentState(MENU_PRINCIPAL);
+        return BotMessages.WELCOME_MENU;
+    }
 
     private String handleMenuPrincipal(WhatsappSession session, String text) {
         /*

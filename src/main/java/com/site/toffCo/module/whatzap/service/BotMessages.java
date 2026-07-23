@@ -55,13 +55,6 @@ public class BotMessages {
             "Tudo bem, voltamos ao menu principal. 🔙\n\n" +
                     WELCOME_MENU;
 
-    public static String getProductLink(String productName, int page) {
-        return "Excelente escolha! 🌟\n\n" +
-                "Você selecionou o *" + productName + "* (Página " + page + ").\n\n" +
-                "🔗 *Confira todos os detalhes abaixo:*\n" +
-                "https://toffbr.com.br/dashboard";
-    }
-
     public static final String INVALID_OPTION =
             "Não consegui entender essa opção. 😅\n\n" +
                     "Por favor, responda apenas com o número de uma das opções do menu.";

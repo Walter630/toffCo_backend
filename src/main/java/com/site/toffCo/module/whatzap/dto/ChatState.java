@@ -1,6 +1,7 @@
 package com.site.toffCo.module.whatzap.dto;
 
 public enum ChatState {
+    NOVO,           // sessão recém-criada — qualquer mensagem exibe o menu pela primeira vez
     MENU_PRINCIPAL,
     CATALOGO,
     FILAMENTO,
