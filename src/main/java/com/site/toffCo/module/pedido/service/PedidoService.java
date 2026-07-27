@@ -2,6 +2,9 @@ package com.site.toffCo.module.pedido.service;
 
 import com.site.toffCo.infra.exception.carrinho.CarNotFound;
 import com.site.toffCo.infra.rabbitMQ.RabbitMQConfig;
+import com.site.toffCo.module.odoo.dto.OdooInvoiceCreateDTO;
+import com.site.toffCo.module.odoo.dto.OdooInvoiceLineDTO;
+import com.site.toffCo.module.pedido.dto.PedidoCheckoutResponseDTO;
 import com.site.toffCo.module.pedido.dto.PedidoEvent;
 import com.site.toffCo.infra.rabbitMQ.PedidoProducer;
 import com.site.toffCo.module.carrinho.entity.Carrinho;
@@ -40,9 +43,9 @@ public class PedidoService {
     }
 
     @Transactional
-    public void realizarCheckout(String userId) {
+    public PedidoCheckoutResponseDTO realizarCheckout(UUID userId) {
         // 1. Busca o carrinho do usuário
-        Carrinho carrinho = carrinhoRepository.findByUser_Id(UUID.fromString(userId))
+        Carrinho carrinho = carrinhoRepository.findByUser_Id(userId)
                 .orElseThrow(() -> new CarNotFound("Carrinho não encontrado"));
 
         if (carrinho.getItens().isEmpty()) {
@@ -73,19 +76,24 @@ public class PedidoService {
         pedidoProducer.send(event);
 
         // 5. Dispara evento para o Odoo (nota fiscal)
-        List<OrderItemOdooEvent> odooItems = carrinho.getItens().stream()
-                .map(item -> new OrderItemOdooEvent(
-                        item.getProduto().getId().toString(),
+        List<OdooInvoiceLineDTO> odooLines = carrinho.getItens().stream()
+                .map(item -> new OdooInvoiceLineDTO(
+                        item.getName(),
                         item.getQuantidade(),
                         item.getPrice()
                 ))
                 .collect(Collectors.toList());
 
-        var odooEvent = new OrderConfirmedOdooEvent(
+        /*
+         * CPF pode ser nulo se o usuário ainda não cadastrou.
+         * O Odoo aceita fatura sem CPF (emite como consumidor final).
+         */
+        var odooEvent = new OdooInvoiceCreateDTO(
                 pedido.getId(),
-                "234.342.234-21",
-                pedido.getTotal(),
-                odooItems
+                pedido.getUser().getUsername(),
+                pedido.getUser().getCpf(),
+                pedido.getUser().getEmail(),
+                odooLines
         );
 
         rabbitTemplate.convertAndSend(
@@ -94,9 +102,10 @@ public class PedidoService {
                 odooEvent
         );
 
-        // 6. Limpa o carrinho — esvazia, não deleta
-        carrinho.getItens().clear();
-        carrinhoRepository.save(carrinho);
+        return new PedidoCheckoutResponseDTO(
+                pedido.getId(),
+                pedido.getTotal()
+        );
     }
 
     /** Monta o snapshot do ItemCarrinho para ItemPedido. */

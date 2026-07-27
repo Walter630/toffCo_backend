@@ -8,8 +8,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Visão do carrinho para o admin.
- * Mostra quem tem itens no carrinho e o que são.
+ * Visão administrativa do carrinho.
+ * Mostra o usuário, os produtos e os valores do carrinho.
  */
 public record AdminCarrinhoDTO(
         UUID carrinhoId,
@@ -22,38 +22,115 @@ public record AdminCarrinhoDTO(
         LocalDateTime ultimaAtualizacao,
         List<AdminItemCarrinhoDTO> itens
 ) {
+
     public record AdminItemCarrinhoDTO(
             UUID itemId,
             String nomeProduto,
             Integer quantidade,
+            String marcaProduto,
             BigDecimal precoUnitario,
             BigDecimal subtotal
-    ) {}
+    ) {
+    }
 
-    /** Factory: converte a entidade para o DTO sem expor a entidade fora do service. */
-    public static AdminCarrinhoDTO from(Carrinho c) {
-        var itensDTO = c.getItens().stream()
-                .map(i -> new AdminItemCarrinhoDTO(
-                        i.getId(),
-                        i.getProduto() != null ? i.getProduto().getName() : "Produto #" + i.getId(),
-                        i.getQuantidade(),
-                        i.getPrice(),
-                        i.getPrice() != null && i.getQuantidade() != null
-                                ? i.getPrice().multiply(BigDecimal.valueOf(i.getQuantidade()))
-                                : BigDecimal.ZERO
-                ))
+    public static AdminCarrinhoDTO from(Carrinho carrinho) {
+        if (carrinho == null) {
+            throw new IllegalArgumentException(
+                    "O carrinho não pode ser nulo"
+            );
+        }
+
+        /*
+         * Normalmente a coleção de itens de uma entidade JPA
+         * já deve ser inicializada e não ser nula.
+         */
+        var itensCarrinho = carrinho.getItens();
+
+        var itensDTO = itensCarrinho.stream()
+                .map(item -> {
+                    var produto = item.getProduto();
+
+                    String nomeProduto = produto != null
+                            ? valueOrDefault(produto.getName())
+                            : "Produto não identificado";
+
+                    /*
+                     * Aqui será retornado "Elegoo", "Creality",
+                     * "Toff Brasil" ou qualquer marca do produto.
+                     */
+                    String marcaProduto = produto != null
+                            ? valueOrDefault(produto.getMarca())
+                            : "—";
+
+                    BigDecimal precoUnitario = item.getPrice() != null
+                            ? item.getPrice()
+                            : BigDecimal.ZERO;
+
+                    Integer quantidade = item.getQuantidade();
+
+                    int quantidadeSegura = quantidade != null
+                            ? quantidade
+                            : 0;
+
+                    BigDecimal subtotal = precoUnitario.multiply(
+                            BigDecimal.valueOf(quantidadeSegura)
+                    );
+
+                    return new AdminItemCarrinhoDTO(
+                            item.getId(),
+                            nomeProduto,
+                            quantidadeSegura,
+                            marcaProduto,
+                            precoUnitario,
+                            subtotal
+                    );
+                })
                 .toList();
 
+        int totalItens = itensCarrinho.stream()
+                .mapToInt(item -> {
+                    Integer quantidade = item.getQuantidade();
+
+                    return quantidade != null
+                            ? quantidade
+                            : 0;
+                })
+                .sum();
+
         return new AdminCarrinhoDTO(
-                c.getId(),
-                c.getUser() != null ? c.getUser().getId() : null,
-                c.getUser() != null ? c.getUser().getEmail() : "—",
-                c.getUser() != null ? c.getUser().getUsername() : "—",
-                c.getUser() != null ? c.getUser().getPhone() : "—",
-                c.getItens().size(),
-                c.getValorTotal() != null ? c.getValorTotal() : BigDecimal.ZERO,
-                c.getUpdatedAt(),
+                carrinho.getId(),
+
+                carrinho.getUser() != null
+                        ? carrinho.getUser().getId()
+                        : null,
+
+                carrinho.getUser() != null
+                        ? valueOrDefault(carrinho.getUser().getEmail())
+                        : "—",
+
+                carrinho.getUser() != null
+                        ? valueOrDefault(carrinho.getUser().getUsername())
+                        : "—",
+
+                carrinho.getUser() != null
+                        ? valueOrDefault(carrinho.getUser().getPhone())
+                        : "—",
+
+                totalItens,
+
+                carrinho.getValorTotal() != null
+                        ? carrinho.getValorTotal()
+                        : BigDecimal.ZERO,
+
+                carrinho.getUpdatedAt(),
+
                 itensDTO
         );
+    }
+
+    private static String valueOrDefault(String value) {
+        return value == null || value.isBlank()
+                ? "—"
+                : value;
     }
 }

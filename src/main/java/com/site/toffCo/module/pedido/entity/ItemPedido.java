@@ -1,6 +1,6 @@
 package com.site.toffCo.module.pedido.entity;
 
-import com.site.toffCo.module.produto.entity.Produto;
+import com.site.toffCo.module.produto.domain.Produto;
 import jakarta.persistence.*;
 import lombok.*;
 

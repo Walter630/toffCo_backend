@@ -1,7 +1,7 @@
 package com.site.toffCo.module.itemcarrinho.entity;
 
 import com.site.toffCo.module.carrinho.entity.Carrinho;
-import com.site.toffCo.module.produto.entity.Produto;
+import com.site.toffCo.module.produto.domain.Produto;
 import jakarta.persistence.*;
 import lombok.*;
 
