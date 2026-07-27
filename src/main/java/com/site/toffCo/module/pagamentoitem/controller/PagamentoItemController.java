@@ -14,7 +14,7 @@ public class PagamentoItemController {
 
     private final PagamentoItemService service;
 
-    @PostMapping("FormaPayment")
+    @PostMapping("/FormaPayment")
     public ResponseEntity<ResponseDTO> processar(@RequestBody PagamentoRequestDTO requestDTO) {
         ResponseDTO response = service.getPagamentoItem(requestDTO);
         return ResponseEntity.ok(response);
