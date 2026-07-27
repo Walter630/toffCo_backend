@@ -42,9 +42,9 @@ class ProdutoServiceTest {
 
     UUID id = UUID.randomUUID();
 
-    ProdutoResponseDTO produtoResponseDTO = new ProdutoResponseDTO(id,"filamento", "descriçao de filamento", "twste","FILAMENTOS", BigDecimal.valueOf(80), 2, ProductType.ABS, ProductStatus.ATIVO, "212233333", "PLA");
+    ProdutoResponseDTO produtoResponseDTO = new ProdutoResponseDTO(id,"filamento", "descriçao de filamento", "twste","FILAMENTOS", BigDecimal.valueOf(80), BigDecimal.valueOf(2), ProductType.ABS, "ABS", ProductStatus.ATIVO, "212233333", "PLA");
 
-    ProdutoRequestDTO produtodto = new ProdutoRequestDTO("filamento", "descriçao de filamento", BigDecimal.valueOf(80),"FILAMENTOS", "" , BigDecimal.valueOf(1), "32323232332", ProductType.ABS_PLUS,  ProductStatus.ATIVO, "PLA");
+    ProdutoRequestDTO produtodto = new ProdutoRequestDTO("filamento", "descriçao de filamento", BigDecimal.valueOf(80),"FILAMENTOS", "" , BigDecimal.valueOf(1), "32323232332", ProductType.ABS_PLUS, "ABS",  ProductStatus.ATIVO, "PLA");
 
     @Test
     @DisplayName("Deve Criar um produto")
