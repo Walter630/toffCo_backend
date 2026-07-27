@@ -58,18 +58,13 @@ public class WhatzapService {
         log.info("Enviando mensagem → number={}, url={}", request.number(), url);
 
         try {
-            restClient.post()
+            String responseBody = restClient.post()
                     .uri(url)
                     .body(request)
                     .retrieve()
-                    .onStatus(
-                            status -> status.is4xxClientError() || status.is5xxServerError(),
-                            (req, res) -> log.error(
-                                    "Evolution API retornou erro {} ao enviar para {}",
-                                    res.getStatusCode(), request.number()
-                            )
-                    )
-                    .toBodilessEntity();
+                    .body(String.class);
+
+            log.info("Evolution API response para {}: {}", request.number(), responseBody);
 
         } catch (RestClientResponseException e) {
             log.error("Erro HTTP da Evolution API: status={}, body={}",

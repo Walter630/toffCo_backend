@@ -2,8 +2,8 @@ package com.site.toffCo.module.odoo.business;
 
 import com.site.toffCo.module.odoo.client.OdooProductClient;
 import com.site.toffCo.module.odoo.dto.OdooProductRequestDTO;
-import com.site.toffCo.module.produto.entity.Produto;
-import com.site.toffCo.module.produto.repository.ProdutoRepository;
+import com.site.toffCo.module.produto.domain.Produto;
+import com.site.toffCo.module.produto.infrastructure.persistence.ProdutoRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
