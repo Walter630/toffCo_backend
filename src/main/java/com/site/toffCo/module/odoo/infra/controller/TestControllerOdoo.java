@@ -5,6 +5,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/v1/test")
 @RequiredArgsConstructor
@@ -13,8 +15,13 @@ public class TestControllerOdoo {
     private final PedidoService pedidoService;
 
     @GetMapping("/checkout")
-    public ResponseEntity<String> checkout(@RequestParam String userId) {
+    public ResponseEntity<String> checkout(
+            @RequestParam UUID userId
+    ) {
         pedidoService.realizarCheckout(userId);
-        return ResponseEntity.ok("Fluxo disparado com sucesso!!");
+
+        return ResponseEntity.ok(
+                "Fluxo disparado com sucesso!!"
+        );
     }
 }
