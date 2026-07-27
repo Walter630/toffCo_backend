@@ -25,12 +25,23 @@ spring:
     port: ${MAIL_PORT:587}
     username: ${MAIL_USER}
     password: ${MAIL_PASS}
+
     properties:
       mail:
+        debug: true
         smtp:
           auth: true
-          starttls:
+          ssl:
             enable: true
+          starttls:
+            enable: false
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
+    test-connection: true
+    default-encoding: UTF-8
+
+
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5674}
@@ -80,6 +91,9 @@ whatsapp:
 odoo:
   sync:
     enabled: ${ODOO_SYNC_ENABLED:false}
+
+  invoice:
+    enabled: ${ODOO_INVOICE_ENABLED:false}
 
   webhook:
     token: ${ODOO_WEBHOOK_TOKEN:token-webhook-local}

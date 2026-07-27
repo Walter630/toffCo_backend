@@ -25,6 +25,10 @@ public class User {
     private String password;
 
     private String username;
+
+    @Column(unique = true, length = 14)
+    private String cpf;
+
     @Column(unique = true)
     private String phone;
 

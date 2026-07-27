@@ -78,7 +78,8 @@ public class SecurityConfig {
                                 ).hasRole("ADMIN")
 
                         .requestMatchers(
-                                "/api/admin/**"
+                                "/api/admin/**",
+                                "/api/nota-fiscal/**"
                         ).hasRole("ADMIN")
 
                         .anyRequest().authenticated() // Bloqueia o resto
