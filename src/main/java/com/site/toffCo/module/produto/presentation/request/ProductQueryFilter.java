@@ -1,7 +1,7 @@
-package com.site.toffCo.module.produto.queryFilter;
+package com.site.toffCo.module.produto.presentation.request;
 
 import static com.site.toffCo.infra.specification.ProductSpec.*;
-import com.site.toffCo.module.produto.entity.Produto;
+import com.site.toffCo.module.produto.domain.Produto;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.jpa.domain.Specification;

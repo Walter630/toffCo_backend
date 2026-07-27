@@ -1,6 +1,6 @@
-package com.site.toffCo.module.produto.dto;
+package com.site.toffCo.module.produto.domain;
 
-public enum Status {
+public enum ProductStatus {
     DISPONIVEL,
     ATIVO,
     EM_BREVE,

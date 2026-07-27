@@ -1,5 +1,7 @@
-package com.site.toffCo.module.produto.dto;
+package com.site.toffCo.module.produto.presentation.request;
 
+import com.site.toffCo.module.produto.domain.ProductStatus;
+import com.site.toffCo.module.produto.domain.ProductType;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -21,8 +23,9 @@ public record ProdutoRequestDTO(
         @PositiveOrZero(message = "Estoque nao pode ser negativo")
         BigDecimal estoque,
         String codigoBarras,
-        String type,
-        Status status,
+        ProductType type,
+        String typePersonalizado,
+        ProductStatus status,
         String marca
 ) {
 }

@@ -1,6 +1,6 @@
 package com.site.toffCo.infra.specification;
 
-import com.site.toffCo.module.produto.entity.Produto;
+import com.site.toffCo.module.produto.domain.Produto;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;

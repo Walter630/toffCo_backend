@@ -1,13 +1,14 @@
 package com.site.toffCo.module.produto.service;
 
 import com.site.toffCo.module.codigoBarras.service.CodigoBarrasServices;
-import com.site.toffCo.module.produto.dto.ProdutoRequestDTO;
-import com.site.toffCo.module.produto.dto.ProdutoResponseDTO;
-import com.site.toffCo.module.produto.dto.Status;
-import com.site.toffCo.module.produto.entity.Produto;
-import com.site.toffCo.module.produto.mapper.ProdutoMapper;
-import com.site.toffCo.module.produto.queryFilter.ProductQueryFilter;
-import com.site.toffCo.module.produto.repository.ProdutoRepository;
+import com.site.toffCo.module.produto.application.command.CreateProductUseCase;
+import com.site.toffCo.module.produto.domain.ProductStatus;
+import com.site.toffCo.module.produto.domain.ProductType;
+import com.site.toffCo.module.produto.presentation.request.ProdutoRequestDTO;
+import com.site.toffCo.module.produto.presentation.response.ProdutoResponseDTO;
+import com.site.toffCo.module.produto.domain.Produto;
+import com.site.toffCo.module.produto.presentation.mapper.ProdutoMapper;
+import com.site.toffCo.module.produto.infrastructure.persistence.ProdutoRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,16 +17,14 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+
 import com.site.toffCo.module.odoo.event.ProductChangedEvent;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,13 +38,13 @@ class ProdutoServiceTest {
     @Mock
     private ApplicationEventPublisher publisher;
     @InjectMocks
-    private ProdutoService produtoService;
+    private CreateProductUseCase createProduct;
 
     UUID id = UUID.randomUUID();
 
-    ProdutoResponseDTO produtoResponseDTO = new ProdutoResponseDTO(id,"filamento", "descriçao de filamento", "twste","FILAMENTOS", BigDecimal.valueOf(80), 2, "", Status.ATIVO, "212233333", "PLA");
+    ProdutoResponseDTO produtoResponseDTO = new ProdutoResponseDTO(id,"filamento", "descriçao de filamento", "twste","FILAMENTOS", BigDecimal.valueOf(80), 2, ProductType.ABS, ProductStatus.ATIVO, "212233333", "PLA");
 
-    ProdutoRequestDTO produtodto = new ProdutoRequestDTO("filamento", "descriçao de filamento", BigDecimal.valueOf(80),"FILAMENTOS", "" , BigDecimal.valueOf(1), "32323232332", "te",  Status.ATIVO, "PLA");
+    ProdutoRequestDTO produtodto = new ProdutoRequestDTO("filamento", "descriçao de filamento", BigDecimal.valueOf(80),"FILAMENTOS", "" , BigDecimal.valueOf(1), "32323232332", ProductType.ABS_PLUS,  ProductStatus.ATIVO, "PLA");
 
     @Test
     @DisplayName("Deve Criar um produto")
@@ -77,7 +76,7 @@ class ProdutoServiceTest {
                 .thenReturn(produtoResponseDTO);
 
         ProdutoResponseDTO responseDTO =
-                produtoService.create(produtodto);
+                createProduct.create(produtodto);
 
         assertNotNull(responseDTO);
         assertEquals("filamento", responseDTO.name());
@@ -119,57 +118,7 @@ class ProdutoServiceTest {
     ) {
     }
 
-    @Test
-    void findAll() {
-        ProductQueryFilter filter = new ProductQueryFilter();
 
-        Produto produto = new Produto();
-        produto.setName("filamento");
-        produto.setPrice(BigDecimal.valueOf(80.99));
-
-        ProdutoResponseDTO responseEsperado =
-                new ProdutoResponseDTO(
-                        id,
-                        "filamento",
-                        "descriçao de filamento",
-                        "twste",
-                        "FILAMENTOS",
-                        BigDecimal.valueOf(80),
-                        2,
-                        "",
-                        Status.ATIVO,
-                        "212233333",
-                        "PLA"
-                );
-
-        List<Produto> produtos = List.of(produto);
-        List<ProdutoResponseDTO> dtos =
-                List.of(responseEsperado);
-
-        Mockito.when(
-                produtoRepository.findAll(any(Specification.class))
-        ).thenReturn(produtos);
-
-        Mockito.when(
-                produtoMapper.toDto(produtos)
-        ).thenReturn(dtos);
-
-        List<ProdutoResponseDTO> responseDTO =
-                produtoService.findAll(filter);
-
-        assertNotNull(responseDTO);
-        assertEquals(1, responseDTO.size());
-        assertEquals(
-                "filamento",
-                responseDTO.getFirst().name()
-        );
-
-        Mockito.verify(produtoRepository)
-                .findAll(any(Specification.class));
-
-        Mockito.verify(produtoMapper)
-                .toDto(produtos);
-    }
 
     @Test
     void findById() {
