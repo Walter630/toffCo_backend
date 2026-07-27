@@ -8,7 +8,8 @@ import java.util.UUID;
 public record AdminUserDTO(
         UUID userId,
         String userName,
-        String userPhone
+        String userPhone,
+        String userEmail
 ) {
     /**
      * Converte a entidade User para AdminUserDTO.
@@ -27,7 +28,8 @@ public record AdminUserDTO(
                         : "—",
                 user.getPhone() != null
                         ? user.getPhone()
-                        : "—"
+                        : "—",
+                user.getEmail() != null ? user.getEmail() : "—"
         );
     }
 }
