@@ -1,6 +1,5 @@
 package com.site.toffCo.module.pedido.entity;
 
-import com.site.toffCo.module.itemcarrinho.entity.ItemCarrinho;
 import com.site.toffCo.module.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;

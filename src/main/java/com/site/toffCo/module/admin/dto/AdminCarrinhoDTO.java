@@ -99,7 +99,6 @@ public record AdminCarrinhoDTO(
 
         return new AdminCarrinhoDTO(
                 carrinho.getId(),
-
                 carrinho.getUser() != null
                         ? carrinho.getUser().getId()
                         : null,
