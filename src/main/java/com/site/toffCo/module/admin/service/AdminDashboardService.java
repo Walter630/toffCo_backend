@@ -3,10 +3,13 @@ package com.site.toffCo.module.admin.service;
 import com.site.toffCo.module.admin.dto.AdminCarrinhoDTO;
 import com.site.toffCo.module.admin.dto.AdminDashboardSummaryDTO;
 import com.site.toffCo.module.admin.dto.AdminPedidoDTO;
+import com.site.toffCo.module.admin.dto.AdminUserDTO;
 import com.site.toffCo.module.carrinho.repository.CarrinhoRepository;
 import com.site.toffCo.module.pedido.entity.Pedido;
 import com.site.toffCo.module.pedido.entity.PedidoStatus;
 import com.site.toffCo.module.pedido.repository.PedidoRepository;
+import com.site.toffCo.module.user.entity.User;
+import com.site.toffCo.module.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -26,6 +29,7 @@ public class AdminDashboardService {
 
     private final CarrinhoRepository carrinhoRepository;
     private final PedidoRepository pedidoRepository;
+    private final UserRepository userRepository;
 
     // ─── RESUMO (cards do topo) ────────────────────────────────────
 
@@ -112,4 +116,14 @@ public class AdminDashboardService {
         pedidoRepository.save(pedido);
         return AdminPedidoDTO.from(pedido);
     }
+
+
+    @Transactional(readOnly = true)
+    public List<AdminUserDTO> findAllUsers() {
+        return userRepository.findAll()
+                .stream()
+                .map(AdminUserDTO::from)
+                .toList();
+    }
+
 }

@@ -3,6 +3,7 @@ package com.site.toffCo.module.admin.controller;
 import com.site.toffCo.module.admin.dto.AdminCarrinhoDTO;
 import com.site.toffCo.module.admin.dto.AdminDashboardSummaryDTO;
 import com.site.toffCo.module.admin.dto.AdminPedidoDTO;
+import com.site.toffCo.module.admin.dto.AdminUserDTO;
 import com.site.toffCo.module.admin.service.AdminDashboardService;
 import com.site.toffCo.module.pedido.entity.PedidoStatus;
 import lombok.RequiredArgsConstructor;
@@ -71,5 +72,10 @@ public class AdminDashboardController {
             @RequestParam PedidoStatus status
     ) {
         return ResponseEntity.ok(service.updateStatusPedido(id, status));
+    }
+
+    @GetMapping("/usuarios")
+    public ResponseEntity<List<AdminUserDTO>>  getUsers() {
+        return ResponseEntity.ok(service.findAllUsers());
     }
 }
