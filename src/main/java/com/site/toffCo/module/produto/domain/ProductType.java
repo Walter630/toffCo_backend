@@ -31,6 +31,7 @@ public enum ProductType {
     PC("Policarbonato"),
 
     ACESSORIO("Acessório"),
+    PECAS("Peças"),
     OUTRO("Outro");
 
     private final String descricao;

@@ -110,10 +110,15 @@ public class PedidoService {
 
     /** Monta o snapshot do ItemCarrinho para ItemPedido. */
     private ItemPedido criarItemPedido(ItemCarrinho item, Pedido pedido) {
+        // Resolve o nome com fallback: campo snapshot do carrinho → nome do produto
+        String nomeProduto = item.getName() != null
+                ? item.getName()
+                : (item.getProduto() != null ? item.getProduto().getName() : "Produto");
+
         ItemPedido ip = new ItemPedido();
         ip.setPedido(pedido);
         ip.setProduto(item.getProduto());
-        ip.setNomeProduto(item.getName());
+        ip.setNomeProduto(nomeProduto);
         ip.setQuantidade(item.getQuantidade());
         ip.setPrecoUnitario(item.getPrice());
         ip.setSubtotal(item.getPrice().multiply(java.math.BigDecimal.valueOf(item.getQuantidade())));
