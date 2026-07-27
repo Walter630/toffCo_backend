@@ -38,7 +38,7 @@ public class Produto {
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal estoque = BigDecimal.ZERO;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = ProductTypeConverter.class)
     @Column(nullable = false)
     private ProductType type;
 
