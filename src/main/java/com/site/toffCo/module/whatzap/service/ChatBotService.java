@@ -249,6 +249,12 @@ public class ChatBotService {
          * e a notificação ao gerente em paralelo via StructuredTaskScope.
          * Retornamos null para não duplicar o envio em sendResponseClient.
          */
+        /*
+         * Salva antes dos envios.
+         * Se outro webhook chegar enquanto as mensagens estão sendo enviadas,
+         * o bot já saberá que a conversa está em atendimento humano.
+         */
+        sessionStore.save(session);
         notificarGerente(session.getWhatsappId(), session.getAttendanceSubject(), text);
         return null;
     }
@@ -267,25 +273,34 @@ public class ChatBotService {
 
     // ─── NOTIFICAÇÃO ──────────────────────────────────────────────
 
-    private void notificarGerente(String whatsappId, String subject, String message) {
-        log.info("Notificando gerente sobre atendimento do WhatsApp {}", whatsappId);
-
-        SendMessageRequest requestCliente = new SendMessageRequest(
+    private void notificarGerente(
+            String whatsappId,
+            String subject,
+            String message
+    ) {
+        log.info(
+                "Cliente {} solicitou atendimento humano. Assunto: {}",
                 whatsappId,
-                BotMessages.WAITING_ATTENDANT_WITH_LINK,
-                2200
+                subject
         );
 
-        SendMessageRequest requestGerente = new SendMessageRequest(
+        // Primeiro confirma ao cliente.
+        sendResponseClient(
+                whatsappId,
+                BotMessages.WAITING_ATTENDANT_WITH_LINK
+        );
+
+        // Depois envia um único alerta ao gerente.
+        SendMessageRequest managerRequest = new SendMessageRequest(
                 attendantNumber,
-                BotMessages.managerNotification(whatsappId, subject, message),
+                BotMessages.managerNotification(
+                        whatsappId,
+                        subject,
+                        message
+                ),
                 2200
         );
 
-        /*
-         * Envia as duas mensagens em paralelo via StructuredTaskScope.
-         * Tempo total = max(t_cliente, t_gerente) em vez de t_cliente + t_gerente.
-         */
-        evolutionApiClient.sendMessages(List.of(requestCliente, requestGerente));
+        evolutionApiClient.sendMessage(managerRequest);
     }
 }
