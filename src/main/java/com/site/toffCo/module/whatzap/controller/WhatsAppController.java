@@ -129,8 +129,20 @@ public class WhatsAppController {
             }
 
             // Bloqueado estaticamente (application.yaml) ou dinamicamente (Redis)?
-            if (whatsappProperties.isStaticallyBlocked(number) || sessionStore.isBlocked(number)) {
-                log.debug("Número bloqueado ignorado: {}", number);
+            boolean staticallyBlocked =
+                    whatsappProperties.isStaticallyBlocked(number);
+
+            boolean dynamicallyBlocked =
+                    sessionStore.isBlocked(number);
+
+            if (staticallyBlocked || dynamicallyBlocked) {
+                log.info(
+                        "Número bloqueado ignorado: number={}, static={}, redis={}",
+                        number,
+                        staticallyBlocked,
+                        dynamicallyBlocked
+                );
+
                 return ResponseEntity.ok().build();
             }
 

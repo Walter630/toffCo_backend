@@ -53,7 +53,7 @@ public class WhatzapService {
      * porque o webhook da Evolution não deve receber 500 — ele retentaria
      * indefinidamente caso o nosso servidor retornasse erro.
      */
-    public void sendMessage(SendMessageRequest request) {
+    public boolean sendMessage(SendMessageRequest request) {
         String url = "/message/sendText/" + this.instanceName;
         log.info("Enviando mensagem → number={}, url={}", request.number(), url);
 
@@ -65,13 +65,16 @@ public class WhatzapService {
                     .body(String.class);
 
             log.info("Evolution API response para {}: {}", request.number(), responseBody);
+            return true;
 
         } catch (RestClientResponseException e) {
             log.error("Erro HTTP da Evolution API: status={}, body={}",
                     e.getStatusCode(), e.getResponseBodyAsString(), e);
+            return false;
         } catch (Exception e) {
             log.error("Falha de rede ao contactar Evolution API para number={}",
                     request.number(), e);
+            return false;
         }
     }
 

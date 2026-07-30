@@ -36,19 +36,48 @@ public class ChatBotService {
 
     // ─── API PÚBLICA ──────────────────────────────────────────────
 
-    public void sendResponseClient(String numberClient, String textResponse) {
+    public boolean sendResponseClient(String numberClient, String textResponse) {
         SendMessageRequest request = new SendMessageRequest(
                 numberClient,
                 textResponse,
                 2200
         );
 
-        evolutionApiClient.sendMessage(request);
+        boolean send = evolutionApiClient.sendMessage(request);
 
-        sessionStore.findByWhatsappId(numberClient).ifPresent(session -> {
-            session.setLastBotReplyAt(Instant.now());
-            sessionStore.save(session);
-        });
+        if (!send) {
+            log.warn("Falha ao send chat response {}", textResponse != null ? textResponse.length() : 0);
+        }
+
+       /* sessionStore.findByWhatsappId(numberClient)
+                .ifPresent(session -> {
+                    session.setLastBotReplyAt(Instant.now());
+                    sessionStore.save(session);
+                });*/
+        return send;
+    }
+
+    /**
+     * Envia uma mensagem do bot e registra o horário
+     * usando a mesma instância da sessão que está sendo processada.
+     */
+    private boolean sendBotMessage(
+            WhatsappSession session,
+            String text
+    ) {
+        boolean sent = sendResponseClient(
+                session.getWhatsappId(),
+                text
+        );
+
+        if (!sent) {
+            return false;
+        }
+
+        session.setLastBotReplyAt(Instant.now());
+        sessionStore.save(session);
+
+        return true;
     }
 
     public void handlePossibleHumanIntervention(String whatsappId) {
@@ -114,31 +143,45 @@ public class ChatBotService {
             String messageId,
             boolean sendToWhatsapp
     ) {
+        if (!sessionStore.markMessageAsProcessed(messageId)) {
+            log.info(
+                    "Mensagem duplicada ignorada: messageId={}, cliente={}",
+                    messageId,
+                    whatsappId
+            );
+
+            return null;
+        }
+
         WhatsappSession session = sessionStore.findByWhatsappId(whatsappId)
                 .orElseGet(() -> WhatsappSession.newSession(whatsappId));
 
-        // Deduplicação: ignora mensagem que já foi processada
-        if (messageId != null && messageId.equals(session.getLastMessageId())) {
-            return null;
-        }
         session.setLastMessageId(messageId);
 
         // Comando de reset: só reseta se NÃO estiver em atendimento humano.
         // Se estiver com humano, "menu" é ignorado pelo bot — o atendente precisa
         // usar /finalizar para devolver o controle.
-        if (messageText != null && RESET_COMMAND.equalsIgnoreCase(messageText.trim())) {
+        if (messageText != null
+                && RESET_COMMAND.equalsIgnoreCase(messageText.trim())) {
+
             if (session.isHumanAssigned()) {
-                // Atendimento humano ativo: bot não interfere, nem com "menu"
                 sessionStore.save(session);
                 return null;
             }
+
             session.setCurrentState(MENU_PRINCIPAL);
             session.setCurrentPage(1);
+
+            // Salva o estado antes do envio.
             sessionStore.save(session);
 
             if (sendToWhatsapp) {
-                sendResponseClient(whatsappId, BotMessages.WELCOME_MENU);
+                sendBotMessage(
+                        session,
+                        BotMessages.WELCOME_MENU
+                );
             }
+
             return BotMessages.WELCOME_MENU;
         }
 
@@ -165,11 +208,12 @@ public class ChatBotService {
             case ATENDIMENTO_HUMANO   -> null;
         };
 
+        sessionStore.save(session);
+
         if (sendToWhatsapp && responseText != null && !responseText.isBlank()) {
             sendResponseClient(whatsappId, responseText);
         }
 
-        sessionStore.save(session);
         return responseText;
     }
 
@@ -255,7 +299,7 @@ public class ChatBotService {
          * o bot já saberá que a conversa está em atendimento humano.
          */
         sessionStore.save(session);
-        notificarGerente(session.getWhatsappId(), session.getAttendanceSubject(), text);
+        notificarGerente(session, text);
         return null;
     }
 
@@ -274,33 +318,81 @@ public class ChatBotService {
     // ─── NOTIFICAÇÃO ──────────────────────────────────────────────
 
     private void notificarGerente(
-            String whatsappId,
-            String subject,
+            WhatsappSession session,
             String message
     ) {
+        String whatsappId =
+                session.getWhatsappId();
+
+        String subject =
+                session.getAttendanceSubject();
+
         log.info(
                 "Cliente {} solicitou atendimento humano. Assunto: {}",
                 whatsappId,
                 subject
         );
 
-        // Primeiro confirma ao cliente.
-        sendResponseClient(
-                whatsappId,
+        /*
+         * Confirma para o cliente.
+         */
+        boolean clientNotified = sendBotMessage(
+                session,
                 BotMessages.WAITING_ATTENDANT_WITH_LINK
         );
 
-        // Depois envia um único alerta ao gerente.
-        SendMessageRequest managerRequest = new SendMessageRequest(
-                attendantNumber,
-                BotMessages.managerNotification(
-                        whatsappId,
-                        subject,
-                        message
-                ),
-                2200
-        );
+        if (!clientNotified) {
+            /*
+             * Mesmo que a confirmação ao cliente falhe,
+             * ainda tentaremos avisar o gerente.
+             *
+             * Caso contrário, um possível cliente interessado
+             * seria perdido por causa de uma falha temporária.
+             */
+            log.warn(
+                    "Cliente {} não recebeu a confirmação",
+                    whatsappId
+            );
+        }
 
-        evolutionApiClient.sendMessage(managerRequest);
+        /*
+         * Impede alertas duplicados ao gerente.
+         */
+        if (!sessionStore.markManagerNotification(whatsappId)) {
+            log.info(
+                    "Gerente já foi notificado recentemente sobre {}",
+                    whatsappId
+            );
+
+            return;
+        }
+
+        SendMessageRequest managerRequest =
+                new SendMessageRequest(
+                        attendantNumber,
+                        BotMessages.managerNotification(
+                                whatsappId,
+                                subject,
+                                message
+                        ),
+                        2200
+                );
+
+        boolean managerNotified =
+                evolutionApiClient.sendMessage(managerRequest);
+
+        if (!managerNotified) {
+            /*
+             * O envio falhou.
+             *
+             * Remove a trava para permitir uma nova tentativa futura.
+             */
+            sessionStore.clearManagerNotification(whatsappId);
+
+            log.warn(
+                    "Falha ao notificar gerente sobre o cliente {}",
+                    whatsappId
+            );
+        }
     }
 }

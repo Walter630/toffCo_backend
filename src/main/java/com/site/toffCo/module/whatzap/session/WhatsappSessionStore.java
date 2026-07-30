@@ -20,6 +20,10 @@ public class WhatsappSessionStore {
     private static final String KEY_PREFIX = "toffco:whatsapp:session:";
     private static final String BLOCKLIST_KEY = "toffco:whatsapp:blocklist";
 
+    private static final String MANAGER_NOTIFICATION_PREFIX = "toffco:whatsapp:manager-notification:";
+    private static final String PROCESSED_MESSAGE_PREFIX =
+            "toffco:whatsapp:processed-message:";
+
     private final StringRedisTemplate redisTemplate;
     private final Duration sessionTtl;
 
@@ -37,17 +41,46 @@ public class WhatsappSessionStore {
     // do estado da sessão. Persiste no Redis — sem reiniciar o servidor.
 
     public void blockNumber(String number) {
-        redisTemplate.opsForSet().add(BLOCKLIST_KEY, number);
-        log.info("Número bloqueado: {}", number);
+        String normalized = normalizeNumber(number);
+
+        if (normalized.isBlank()) {
+            return;
+        }
+
+        redisTemplate.opsForSet().add(
+                BLOCKLIST_KEY,
+                normalized
+        );
+
+        log.info("Número bloqueado: {}", normalized);
     }
 
     public void unblockNumber(String number) {
-        redisTemplate.opsForSet().remove(BLOCKLIST_KEY, number);
-        log.info("Número desbloqueado: {}", number);
+        String normalized = normalizeNumber(number);
+
+        if (normalized.isBlank()) {
+            return;
+        }
+
+        redisTemplate.opsForSet().remove(
+                BLOCKLIST_KEY,
+                normalized
+        );
+
+        log.info("Número desbloqueado: {}", normalized);
     }
 
     public boolean isBlocked(String number) {
-        return Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(BLOCKLIST_KEY, number));
+        String normalized = normalizeNumber(number);
+
+        if (normalized.isBlank()) {
+            return false;
+        }
+
+        return Boolean.TRUE.equals(
+                redisTemplate.opsForSet()
+                        .isMember(BLOCKLIST_KEY, normalized)
+        );
     }
 
     public Set<String> getBlocklist() {
@@ -184,5 +217,73 @@ public class WhatsappSessionStore {
 
     private Instant parseInstant(String raw) {
         return raw == null ? null : Instant.parse(raw);
+    }
+
+    public boolean markManagerNotification(String whatsappId) {
+        if (whatsappId == null || whatsappId.isBlank()) {
+            return true;
+        }
+        String key = MANAGER_NOTIFICATION_PREFIX + whatsappId;
+
+        Boolean created = redisTemplate.opsForValue()
+                .setIfAbsent(key, "1", Duration.ofHours(12));
+
+        return Boolean.TRUE.equals(created);
+    }
+    /**
+     * Registra uma mensagem como processada.
+     *
+     * Retorna:
+     * true  -> é a primeira vez que recebemos esse messageId
+     * false -> essa mensagem já foi processada anteriormente
+     */
+    public boolean markMessageAsProcessed(String messageId) {
+        if (messageId == null || messageId.isBlank()) {
+            /*
+             * Caso raro em que a Evolution não enviou ID.
+             * Permitimos o processamento, pois não existe como deduplicar.
+             */
+            return false;
+        }
+
+        String redisKey =
+                PROCESSED_MESSAGE_PREFIX + messageId;
+
+        Boolean created = redisTemplate.opsForValue()
+                .setIfAbsent(
+                        redisKey,
+                        "1",
+                        Duration.ofHours(24)
+                );
+
+        return Boolean.TRUE.equals(created);
+    }
+
+    public void clearManagerNotification(String whatsappId) {
+        if (whatsappId == null || whatsappId.isBlank()) {
+            return;
+        }
+
+        redisTemplate.delete(
+                MANAGER_NOTIFICATION_PREFIX + whatsappId
+        );
+    }
+
+    private String normalizeNumber(String number) {
+        if (number == null) {
+            return "";
+        }
+
+        String digits = number.replaceAll("\\D", "");
+
+        if (digits.startsWith("55")
+                && digits.length() == 13
+                && digits.charAt(4) == '9') {
+
+            return digits.substring(0, 4)
+                    + digits.substring(5);
+        }
+
+        return digits;
     }
 }
