@@ -26,6 +26,8 @@ public class WhatsappSessionStore {
     private static final String MANAGER_NOTIFICATION_PREFIX = "toffco:whatsapp:manager-notification:";
     private static final String PROCESSED_MESSAGE_PREFIX =
             "toffco:whatsapp:processed-message:";
+    private static final String SENT_RESPONSE_PREFIX =
+            "toffco:whatsapp:sent-response:";
 
     private final StringRedisTemplate redisTemplate;
     private final Duration sessionTtl;
@@ -276,14 +278,46 @@ public class WhatsappSessionStore {
 
         String normalized = (whatsappId == null ? "" : whatsappId.trim()) + "|" +
                 (messageText == null ? "" : messageText.trim().toLowerCase(Locale.ROOT));
-        long timeBucket = System.currentTimeMillis() / 5000;
-        String fingerprint = sha256(normalized + "|" + timeBucket);
+        long timeBucket = System.currentTimeMillis() / 60_000;
+        String currentFingerprint = sha256(normalized + "|" + timeBucket);
+        String previousFingerprint = sha256(normalized + "|" + (timeBucket - 1));
+        String currentKey = PROCESSED_MESSAGE_PREFIX + "fingerprint:" + currentFingerprint;
+        String previousKey = PROCESSED_MESSAGE_PREFIX + "fingerprint:" + previousFingerprint;
+
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(currentKey))
+                || Boolean.TRUE.equals(redisTemplate.hasKey(previousKey))) {
+            return false;
+        }
+
         Boolean created = redisTemplate.opsForValue().setIfAbsent(
-                PROCESSED_MESSAGE_PREFIX + "fingerprint:" + fingerprint,
+                currentKey,
                 "1",
-                Duration.ofSeconds(10)
+                Duration.ofSeconds(90)
         );
         return Boolean.TRUE.equals(created);
+    }
+
+    /** Impede o mesmo texto de resposta de ser enviado repetidamente em poucos segundos. */
+    public boolean isResponseDuplicate(String whatsappId, String responseText) {
+        String key = SENT_RESPONSE_PREFIX + sha256(
+                (whatsappId == null ? "" : whatsappId.trim()) + "|" +
+                        (responseText == null ? "" : responseText.trim())
+        );
+        // setIfAbsent Ã© atÃ´mico no Redis: somente o primeiro processo pode enviar.
+        Boolean created = redisTemplate.opsForValue().setIfAbsent(
+                key,
+                "1",
+                Duration.ofSeconds(90)
+        );
+        return !Boolean.TRUE.equals(created);
+    }
+
+    public void releaseResponseClaim(String whatsappId, String responseText) {
+        String key = SENT_RESPONSE_PREFIX + sha256(
+                (whatsappId == null ? "" : whatsappId.trim()) + "|" +
+                        (responseText == null ? "" : responseText.trim())
+        );
+        redisTemplate.delete(key);
     }
 
     private String sha256(String value) {

@@ -27,6 +27,9 @@ public class WhatzapService {
     private final String instanceName;
     private final WhatsappCircuitBreaker circuitBreaker;
     private final WhatsappMonitoringService monitoring;
+    private final RestClient n8nClient;
+    private final String n8nAlertWebhookUrl;
+    private final boolean n8nReviewMode;
 
     /**
      * Injeta as configurações via @ConfigurationProperties (type-safe).
@@ -38,6 +41,8 @@ public class WhatzapService {
      */
     public WhatzapService(EvolutionApiProperties props,
                           @Value("${evolution.api.read-timeout:PT8S}") Duration readTimeout,
+                          @Value("${n8n.alert-webhook-url:}") String n8nAlertWebhookUrl,
+                          @Value("${n8n.review-mode:false}") boolean n8nReviewMode,
                           WhatsappCircuitBreaker circuitBreaker,
                           WhatsappMonitoringService monitoring) {
         log.info("WhatzapService iniciando — url={}, instance={}", props.url(), props.instance());
@@ -45,6 +50,8 @@ public class WhatzapService {
         this.instanceName = props.instance();
         this.circuitBreaker = circuitBreaker;
         this.monitoring = monitoring;
+        this.n8nAlertWebhookUrl = n8nAlertWebhookUrl;
+        this.n8nReviewMode = n8nReviewMode;
 
         // HttpClient nativo do Java — connection pooling gerenciado pela JVM
         var httpClient = HttpClient.newBuilder()
@@ -65,6 +72,7 @@ public class WhatzapService {
                 .defaultHeader("apikey", props.key())
                 .requestFactory(presenceRequestFactory)
                 .build();
+        this.n8nClient = RestClient.builder().build();
     }
 
     /**
@@ -78,6 +86,7 @@ public class WhatzapService {
         if (!circuitBreaker.allowRequest()) {
             monitoring.recordCircuitBlocked();
             log.warn("Envio WhatsApp bloqueado pelo circuit breaker para {}", request.number());
+            notifyN8n("WHATSAPP_CIRCUIT_OPEN", request.number(), "Circuit breaker bloqueou o envio");
             return false;
         }
         long startedAt = monitoring.startTimer();
@@ -101,13 +110,50 @@ public class WhatzapService {
                     e.getStatusCode(), e.getResponseBodyAsString(), e);
             circuitBreaker.recordFailure();
             monitoring.recordFailure(startedAt);
+            notifyN8n("WHATSAPP_SEND_FAILURE", request.number(), "Evolution retornou HTTP " + e.getStatusCode());
             return false;
         } catch (Exception e) {
             log.error("Falha de rede ao contactar Evolution API para number={}",
                     request.number(), e);
             circuitBreaker.recordFailure();
             monitoring.recordFailure(startedAt);
+            notifyN8n("WHATSAPP_SEND_FAILURE", request.number(), "Falha de rede: " + e.getClass().getSimpleName());
             return false;
+        }
+    }
+
+    /** Mostra "digitando..." sem deixar uma falha de presença impedir a resposta. */
+    private void notifyN8n(String type, String number, String message) {
+        if (n8nAlertWebhookUrl == null || n8nAlertWebhookUrl.isBlank()) return;
+        try {
+            n8nClient.post().uri(n8nAlertWebhookUrl).body(Map.of(
+                    "type", type,
+                    "number", number == null ? "" : number,
+                    "message", message,
+                    "timestamp", java.time.OffsetDateTime.now().toString()
+            )).retrieve().toBodilessEntity();
+        } catch (Exception alertException) {
+            log.warn("Não foi possível enviar alerta ao n8n: {}", alertException.getMessage());
+        }
+    }
+
+    /** Envia uma cópia das respostas para revisão manual durante a fase de testes. */
+    public void notifyBotResponseReview(String number, String incomingMessage,
+                                        String botResponse, String state) {
+        if (!n8nReviewMode || n8nAlertWebhookUrl == null || n8nAlertWebhookUrl.isBlank()) {
+            return;
+        }
+        try {
+            n8nClient.post().uri(n8nAlertWebhookUrl).body(Map.of(
+                    "type", "BOT_RESPONSE_REVIEW",
+                    "number", number == null ? "" : number,
+                    "incomingMessage", incomingMessage == null ? "" : incomingMessage,
+                    "botResponse", botResponse == null ? "" : botResponse,
+                    "state", state == null ? "" : state,
+                    "timestamp", java.time.OffsetDateTime.now().toString()
+            )).retrieve().toBodilessEntity();
+        } catch (Exception exception) {
+            log.warn("Não foi possível enviar revisão do bot ao n8n: {}", exception.getMessage());
         }
     }
 

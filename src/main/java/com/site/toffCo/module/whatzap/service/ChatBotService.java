@@ -41,6 +41,15 @@ public class ChatBotService {
     // ─── API PÚBLICA ──────────────────────────────────────────────
 
     public boolean sendResponseClient(String numberClient, String textResponse) {
+        try {
+            if (sessionStore.isResponseDuplicate(numberClient, textResponse)) {
+                log.info("Resposta duplicada bloqueada: cliente={}", numberClient);
+                return true;
+            }
+        } catch (RuntimeException exception) {
+            // Se o Redis estiver indisponível, o bot ainda tenta responder.
+            log.warn("Idempotência indisponível; enviando resposta normalmente: {}", exception.getMessage());
+        }
         evolutionApiClient.sendTyping(numberClient);
         SendMessageRequest request = new SendMessageRequest(
                 numberClient,
@@ -51,6 +60,11 @@ public class ChatBotService {
         boolean send = evolutionApiClient.sendMessage(request);
 
         if (!send) {
+            try {
+                sessionStore.releaseResponseClaim(numberClient, textResponse);
+            } catch (RuntimeException exception) {
+                log.warn("Não foi possível liberar a chave de idempotência: {}", exception.getMessage());
+            }
             log.warn("Falha ao send chat response {}", textResponse != null ? textResponse.length() : 0);
         }
 
@@ -117,6 +131,7 @@ public class ChatBotService {
         } catch (Exception exception) {
             log.error("Falha ao processar mensagem WhatsApp do número {}: {}", whatsappId,
                     exception.getMessage(), exception);
+            sendResponseClient(whatsappId, BotMessages.SYSTEM_FAILURE);
         }
     }
 
@@ -231,7 +246,16 @@ public class ChatBotService {
         sessionStore.save(session);
 
         if (sendToWhatsapp && responseText != null && !responseText.isBlank()) {
-            sendResponseClient(whatsappId, responseText);
+            evolutionApiClient.notifyBotResponseReview(
+                    whatsappId,
+                    messageText,
+                    responseText,
+                    session.getCurrentState().name()
+            );
+            boolean sent = sendResponseClient(whatsappId, responseText);
+            if (!sent) {
+                sendResponseClient(whatsappId, BotMessages.SYSTEM_FAILURE);
+            }
         }
 
         return responseText;
@@ -278,6 +302,8 @@ public class ChatBotService {
                 yield BotMessages.askProblemDescription(session.getAttendanceSubject());
             }
             case "4" -> { session.setCurrentState(ASSUNTO_ATENDIMENTO); yield BotMessages.ATTENDANCE_SUBJECT_MENU; }
+            // Texto livre no menu nÃ£o deve parecer um erro para o cliente.
+            // Mostra o menu novamente e deixa a conversa seguir normalmente.
             default  -> BotMessages.INVALID_OPTION + "\n\n" + BotMessages.WELCOME_MENU;
         };
     }

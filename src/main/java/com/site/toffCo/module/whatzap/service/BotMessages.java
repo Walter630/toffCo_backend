@@ -13,7 +13,7 @@ public class BotMessages {
 
     public static final String WELCOME_MENU =
             "Olá! 👋 Bem-vindo à *Toff Brasil*!\n\n" +
-            "Sou a Carol, assistente virtual. Como posso ajudar?\n\n" +
+            "Sou a Karol, assistente virtual. Como posso ajudar?\n\n" +
             "1️⃣ Comprar produtos no site\n" +
             "2️⃣ Manutenção de impressoras 3D\n" +
             "3️⃣ Consultoria em impressão 3D\n" +
@@ -40,7 +40,12 @@ public class BotMessages {
 
     public static final String BACK_TO_MENU = "Voltando ao menu. 🔙\n\n" + WELCOME_MENU;
 
-    public static final String INVALID_OPTION = "Opção inválida. Digite um número do menu.   \n\n" + WELCOME_MENU;
+    public static final String INVALID_OPTION = "Opção inválida. Digite um número do menu.";
+
+    public static final String SYSTEM_FAILURE =
+            "Tivemos uma instabilidade momentânea. Um atendente foi acionado.\n\n" +
+            "Você também pode consultar nossos produtos:\n" +
+            "https://toffbr.com.br/catalogo";
 
     public static String getCatalogLink(String productName) {
         String[] info = CATEGORIAS.getOrDefault(productName.toUpperCase(), new String[]{"produtos", "Produtos"});

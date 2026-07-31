@@ -75,6 +75,10 @@ jwt:
 server:
   port: 8081
 
+n8n:
+  alert-webhook-url: ${N8N_ALERT_WEBHOOK_URL:}
+  review-mode: ${N8N_REVIEW_MODE:false}
+
 evolution:
   api:
     url: ${EVOLUTION_API_URL:http://localhost:8080}
