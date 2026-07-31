@@ -1,5 +1,6 @@
 package com.site.toffCo.module.produto.presentation.request;
 
+import com.site.toffCo.module.produto.application.command.model.CreateProductCommand;
 import com.site.toffCo.module.produto.domain.ProductStatus;
 import com.site.toffCo.module.produto.domain.ProductType;
 import jakarta.validation.constraints.DecimalMin;
@@ -28,4 +29,19 @@ public record ProdutoRequestDTO(
         ProductStatus status,
         String marca
 ) {
+
+        public CreateProductCommand toCommand() {
+                return new CreateProductCommand(
+                        name,
+                        description,
+                        price,
+                        image,
+                        categoria,
+                        estoque,
+                        type,
+                        typePersonalizado,
+                        marca,
+                        status
+                );
+        }
 }

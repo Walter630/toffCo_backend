@@ -8,7 +8,9 @@ import com.site.toffCo.module.carrinho.repository.CarrinhoRepository;
 import com.site.toffCo.module.pedido.entity.Pedido;
 import com.site.toffCo.module.pedido.entity.PedidoStatus;
 import com.site.toffCo.module.pedido.repository.PedidoRepository;
+import com.site.toffCo.module.user.dto.UserResponseDTO;
 import com.site.toffCo.module.user.entity.User;
+import com.site.toffCo.module.user.mapper.UserMapper;
 import com.site.toffCo.module.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -72,12 +74,7 @@ public class AdminDashboardService {
                 ? pedidoRepository.findByStatusOrderByDataCriacaoDesc(status, pageable)
                 : pedidoRepository.findAllByOrderByDataCriacaoDesc(pageable);
 
-        List<AdminPedidoDTO> content = page.getContent()
-                .stream()
-                .map(AdminPedidoDTO::from)
-                .toList();
-
-        return new PageImpl<>(content, pageable, page.getTotalElements());
+        return page.map(AdminPedidoDTO::from);
     }
 
     /**
@@ -107,23 +104,36 @@ public class AdminDashboardService {
      * Ex: marcar como EM_SEPARACAO, ENVIADO, ENTREGUE, CANCELADO.
      */
     @Transactional
-    public AdminPedidoDTO updateStatusPedido(UUID pedidoId, PedidoStatus novoStatus) {
-        Pedido pedido = pedidoRepository.findById(pedidoId)
-                .orElseThrow(() -> new RuntimeException("Pedido não encontrado: " + pedidoId));
+    public AdminPedidoDTO updateStatusPedido(
+            UUID pedidoId,
+            PedidoStatus novoStatus
+    ) {
+        Pedido pedido = pedidoRepository
+                .findById(pedidoId)
+                .orElseThrow(
+                        () -> new RuntimeException(
+                                "Pedido não encontrado: " + pedidoId
+                        )
+                );
 
-        log.info("Admin atualizando pedido {} de {} para {}", pedidoId, pedido.getStatus(), novoStatus);
+        log.info(
+                "Admin atualizando pedido {} de {} para {}",
+                pedidoId,
+                pedido.getStatus(),
+                novoStatus
+        );
+
         pedido.setStatus(novoStatus);
-        pedidoRepository.save(pedido);
+
         return AdminPedidoDTO.from(pedido);
     }
 
+    // ─── USUÁRIOS ───────────────────────────────────────────────
 
     @Transactional(readOnly = true)
-    public List<AdminUserDTO> findAllUsers() {
-        return userRepository.findAll()
-                .stream()
-                .map(AdminUserDTO::from)
-                .toList();
+    public Page<AdminUserDTO> findAllUsers(Pageable pageable) {
+        return userRepository
+                .findAll(pageable)
+                .map(AdminUserDTO::from);
     }
-
 }

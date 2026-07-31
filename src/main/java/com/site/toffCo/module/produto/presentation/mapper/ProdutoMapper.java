@@ -1,5 +1,7 @@
 package com.site.toffCo.module.produto.presentation.mapper;
 
+import com.site.toffCo.module.produto.application.command.model.CreateProductCommand;
+import com.site.toffCo.module.produto.application.command.model.UpdateProductCommand;
 import com.site.toffCo.module.produto.presentation.request.ProdutoRequestDTO;
 import com.site.toffCo.module.produto.presentation.response.ProdutoResponseDTO;
 import com.site.toffCo.module.produto.domain.Produto;
@@ -19,7 +21,7 @@ public abstract class ProdutoMapper {
      @Mapping(target = "codigoBarras", ignore = true)
      @Mapping(target = "imagemCodigoBarras", ignore = true)
      @Mapping(target = "odooProductId", ignore = true)
-    public abstract Produto toEntity(ProdutoRequestDTO dto);
+    public abstract Produto toEntity(CreateProductCommand command);
 
     public abstract ProdutoResponseDTO toDto(Produto entity);
 
@@ -37,5 +39,5 @@ public abstract class ProdutoMapper {
     @Mapping(target = "price", source = "dto.price")
     @Mapping(target = "image", source = "dto.image")
     @Mapping(target = "status", source = "dto.status")
-    public abstract void toUpdateEntity(ProdutoRequestDTO dto, @MappingTarget Produto produto);
+    public abstract void toUpdateEntity(UpdateProductCommand dto, @MappingTarget Produto produto);
 }

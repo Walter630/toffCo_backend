@@ -2,6 +2,7 @@ package com.site.toffCo.module.produto.service;
 
 import com.site.toffCo.module.codigoBarras.service.CodigoBarrasServices;
 import com.site.toffCo.module.produto.application.command.CreateProductUseCase;
+import com.site.toffCo.module.produto.application.command.model.CreateProductCommand;
 import com.site.toffCo.module.produto.domain.ProductStatus;
 import com.site.toffCo.module.produto.domain.ProductType;
 import com.site.toffCo.module.produto.presentation.request.ProdutoRequestDTO;
@@ -16,7 +17,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
+import com.site.toffCo.module.produto.infrastructure.messaging.ProductEventPublisher;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -25,7 +26,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 
-import com.site.toffCo.module.odoo.event.ProductChangedEvent;
 
 @ExtendWith(MockitoExtension.class)
 class ProdutoServiceTest {
@@ -36,7 +36,7 @@ class ProdutoServiceTest {
     @Mock
     private CodigoBarrasServices  codigoBarrasServices;
     @Mock
-    private ApplicationEventPublisher publisher;
+    private ProductEventPublisher eventPublisher;
     @InjectMocks
     private CreateProductUseCase createProduct;
 
@@ -44,7 +44,7 @@ class ProdutoServiceTest {
 
     ProdutoResponseDTO produtoResponseDTO = new ProdutoResponseDTO(id,"filamento", "descriçao de filamento", "twste","FILAMENTOS", BigDecimal.valueOf(80), BigDecimal.valueOf(2), ProductType.ABS, "ABS", ProductStatus.ATIVO, "212233333", "PLA");
 
-    ProdutoRequestDTO produtodto = new ProdutoRequestDTO("filamento", "descriçao de filamento", BigDecimal.valueOf(80),"FILAMENTOS", "" , BigDecimal.valueOf(1), "32323232332", ProductType.ABS_PLUS, "ABS",  ProductStatus.ATIVO, "PLA");
+    CreateProductCommand produtodto = new CreateProductCommand("filamento", "descriçao de filamento", BigDecimal.valueOf(80),"FILAMENTOS", "" , BigDecimal.valueOf(1), ProductType.ABS_PLUS, "ABS", "PLA",  ProductStatus.ATIVO);
 
     @Test
     @DisplayName("Deve Criar um produto")
@@ -89,7 +89,7 @@ class ProdutoServiceTest {
                 responseDTO.price()
         );
         assertEquals("twste", responseDTO.image());
-        assertEquals(2, responseDTO.estoque());
+        assertEquals(BigDecimal.valueOf(2), responseDTO.estoque());
 
         Mockito.verify(produtoMapper)
                 .toEntity(produtodto);
@@ -105,8 +105,8 @@ class ProdutoServiceTest {
         Mockito.verify(codigoBarrasServices)
                 .gerarImagemCodigoBarras("7896983662679");
 
-        Mockito.verify(publisher)
-                .publishEvent(any(ProductChangedEvent.class));
+        Mockito.verify(eventPublisher)
+                .publishUpdate(produto);
 
         Mockito.verify(produtoMapper)
                 .toDto(produto);

@@ -2,6 +2,9 @@ package com.site.toffCo.module.whatzap.service;
 
 import com.site.toffCo.infra.config.EvolutionApiProperties;
 import com.site.toffCo.module.whatzap.dto.SendMessageRequest;
+import com.site.toffCo.module.whatzap.monitoring.WhatsappCircuitBreaker;
+import com.site.toffCo.module.whatzap.monitoring.WhatsappMonitoringService;
+import org.springframework.beans.factory.annotation.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
@@ -20,6 +23,8 @@ public class WhatzapService {
 
     private final RestClient restClient;
     private final String instanceName;
+    private final WhatsappCircuitBreaker circuitBreaker;
+    private final WhatsappMonitoringService monitoring;
 
     /**
      * Injeta as configurações via @ConfigurationProperties (type-safe).
@@ -29,20 +34,27 @@ public class WhatzapService {
      * (spring.threads.virtual.enabled=true), bloquear aqui é seguro e eficiente
      * — cada requisição roda numa virtual thread barata, sem ocupar plataforma thread.
      */
-    public WhatzapService(EvolutionApiProperties props) {
+    public WhatzapService(EvolutionApiProperties props,
+                          @Value("${evolution.api.read-timeout:PT8S}") Duration readTimeout,
+                          WhatsappCircuitBreaker circuitBreaker,
+                          WhatsappMonitoringService monitoring) {
         log.info("WhatzapService iniciando — url={}, instance={}", props.url(), props.instance());
 
         this.instanceName = props.instance();
+        this.circuitBreaker = circuitBreaker;
+        this.monitoring = monitoring;
 
         // HttpClient nativo do Java — connection pooling gerenciado pela JVM
         var httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();
 
+        var requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(readTimeout);
         this.restClient = RestClient.builder()
                 .baseUrl(props.url())
                 .defaultHeader("apikey", props.key())
-                .requestFactory(new JdkClientHttpRequestFactory(httpClient))
+                .requestFactory(requestFactory)
                 .build();
     }
 
@@ -54,6 +66,12 @@ public class WhatzapService {
      * indefinidamente caso o nosso servidor retornasse erro.
      */
     public boolean sendMessage(SendMessageRequest request) {
+        if (!circuitBreaker.allowRequest()) {
+            monitoring.recordCircuitBlocked();
+            log.warn("Envio WhatsApp bloqueado pelo circuit breaker para {}", request.number());
+            return false;
+        }
+        long startedAt = monitoring.startTimer();
         String url = "/message/sendText/" + this.instanceName;
         log.info("Enviando mensagem → number={}, url={}", request.number(), url);
 
@@ -65,15 +83,21 @@ public class WhatzapService {
                     .body(String.class);
 
             log.info("Evolution API response para {}: {}", request.number(), responseBody);
+            circuitBreaker.recordSuccess();
+            monitoring.recordSuccess(startedAt);
             return true;
 
         } catch (RestClientResponseException e) {
             log.error("Erro HTTP da Evolution API: status={}, body={}",
                     e.getStatusCode(), e.getResponseBodyAsString(), e);
+            circuitBreaker.recordFailure();
+            monitoring.recordFailure(startedAt);
             return false;
         } catch (Exception e) {
             log.error("Falha de rede ao contactar Evolution API para number={}",
                     request.number(), e);
+            circuitBreaker.recordFailure();
+            monitoring.recordFailure(startedAt);
             return false;
         }
     }

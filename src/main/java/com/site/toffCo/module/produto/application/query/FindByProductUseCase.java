@@ -1,6 +1,6 @@
 package com.site.toffCo.module.produto.application.query;
 
-import com.site.toffCo.infra.exception.product.ProductNotFound;
+import com.site.toffCo.module.produto.domain.exception.ProductNotFound;
 import com.site.toffCo.module.produto.presentation.response.ProdutoResponseDTO;
 import com.site.toffCo.module.produto.presentation.mapper.ProdutoMapper;
 import com.site.toffCo.module.produto.infrastructure.persistence.ProdutoRepository;

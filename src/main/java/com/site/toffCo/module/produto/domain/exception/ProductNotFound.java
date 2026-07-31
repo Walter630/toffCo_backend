@@ -1,4 +1,4 @@
-package com.site.toffCo.infra.exception.product;
+package com.site.toffCo.module.produto.domain.exception;
 
 public class ProductNotFound extends RuntimeException {
     public ProductNotFound(String message) {

@@ -1,4 +1,4 @@
-package com.site.toffCo.infra.specification;
+package com.site.toffCo.module.produto.infrastructure.persistence.specification;
 
 import com.site.toffCo.module.produto.domain.Produto;
 import org.springframework.data.jpa.domain.Specification;

@@ -3,7 +3,7 @@ package com.site.toffCo.module.carrinho.service;
 import com.site.toffCo.infra.exception.carrinho.CarNotFound;
 import com.site.toffCo.infra.exception.item.ItemNotFound;
 import com.site.toffCo.infra.exception.item.QuantidadInvalid;
-import com.site.toffCo.infra.exception.product.ProductNotFound;
+import com.site.toffCo.module.produto.domain.exception.ProductNotFound;
 import com.site.toffCo.infra.utils.AuthUtil;
 import com.site.toffCo.module.carrinho.dto.CarrinhoRequestDTO;
 import com.site.toffCo.module.carrinho.dto.CarrinhoResponseDTO;

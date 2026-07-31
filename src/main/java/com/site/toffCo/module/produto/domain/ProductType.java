@@ -32,7 +32,9 @@ public enum ProductType {
 
     ACESSORIO("Acessório"),
     PECAS("Peças"),
-    OUTRO("Outro");
+    OUTRO("Outro"),
+
+    ADESIVO("Adesivo");
 
     private final String descricao;
 }

@@ -23,8 +23,10 @@ spring:
   mail:
     host: ${MAIL_HOST:sandbox.smtp.mailtrap.io}
     port: ${MAIL_PORT:587}
-    username: ${MAIL_USER}
-    password: ${MAIL_PASS}
+    # E-mail fica opcional enquanto não for usado.
+    # Ao ativar, configure MAIL_USER e MAIL_PASS no ambiente.
+    username: ${MAIL_USER:disabled@localhost}
+    password: ${MAIL_PASS:disabled}
 
     properties:
       mail:
@@ -38,7 +40,7 @@ spring:
           connectiontimeout: 10000
           timeout: 10000
           writetimeout: 10000
-    test-connection: true
+    test-connection: false
     default-encoding: UTF-8
 
 
@@ -78,8 +80,13 @@ evolution:
     url: ${EVOLUTION_API_URL:http://localhost:8080}
     instance: ${EVOLUTION_API_INSTANCE:Bot_toffBrasil}
     key: ${EVOLUTION_API_KEY:KeyExemplo_teste_naoVali_da}
+    read-timeout: ${EVOLUTION_API_READ_TIMEOUT:PT8S}
+    circuit:
+      failure-threshold: ${EVOLUTION_API_CIRCUIT_FAILURE_THRESHOLD:5}
+      open-duration: ${EVOLUTION_API_CIRCUIT_OPEN_DURATION:PT30S}
 
 whatsapp:
+  simulation-enabled: ${WHATSAPP_SIMULATION_ENABLED:false}
   session:
     ttl: ${WHATSAPP_SESSION_TTL:PT24H}
   attendant-number: ${WHATSAPP_ATTENDANT_NUMBER:}

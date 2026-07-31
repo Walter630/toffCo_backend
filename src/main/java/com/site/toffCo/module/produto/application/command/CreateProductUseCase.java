@@ -2,6 +2,7 @@ package com.site.toffCo.module.produto.application.command;
 
 import com.google.zxing.WriterException;
 import com.site.toffCo.module.codigoBarras.service.CodigoBarrasServices;
+import com.site.toffCo.module.produto.application.command.model.CreateProductCommand;
 import com.site.toffCo.module.produto.presentation.request.ProdutoRequestDTO;
 import com.site.toffCo.module.produto.presentation.response.ProdutoResponseDTO;
 import com.site.toffCo.module.produto.domain.Produto;
@@ -29,8 +30,8 @@ public class CreateProductUseCase {
 
     //@PreAuthorize("hasRole('ADMIN')")
     @Transactional
-    public ProdutoResponseDTO create(ProdutoRequestDTO produtoDTO) {
-        Produto produto = mapper.toEntity(produtoDTO);
+    public ProdutoResponseDTO create(CreateProductCommand command) {
+        Produto produto = mapper.toEntity(command);
 
         /*
          * Primeiro save para garantir que o produto possua ID.

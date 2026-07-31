@@ -15,7 +15,8 @@ public record WhatsappProperties(
         )
         String attendantNumber,
 
-        List<String> blockedNumbers
+        List<String> blockedNumbers,
+        boolean simulationEnabled
 ) {
 
     public record Session(Duration ttl) {

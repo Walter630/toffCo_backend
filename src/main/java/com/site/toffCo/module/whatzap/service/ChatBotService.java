@@ -9,10 +9,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.scheduling.annotation.Async;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import static com.site.toffCo.module.whatzap.dto.ChatState.*;
 
@@ -26,6 +29,7 @@ public class ChatBotService {
 
     private final WhatsappSessionStore sessionStore;
     private final WhatzapService evolutionApiClient;
+    private final ConcurrentMap<String, Object> processingLocks = new ConcurrentHashMap<>();
 
     /*
      * Número do atendente/gerente que recebe notificações do bot.
@@ -99,11 +103,26 @@ public class ChatBotService {
     }
 
     public void processIncomingMessage(String whatsappId, String messageText, String messageId) {
-        processIncomingMessage(whatsappId, messageText, messageId, true);
+        synchronized (processingLocks.computeIfAbsent(whatsappId, ignored -> new Object())) {
+            processIncomingMessage(whatsappId, messageText, messageId, true);
+        }
+    }
+
+    /** Mantém o webhook rápido mesmo quando a Evolution API estiver lenta. */
+    @Async("whatsappBotExecutor")
+    public void processIncomingMessageAsync(String whatsappId, String messageText, String messageId) {
+        try {
+            processIncomingMessage(whatsappId, messageText, messageId);
+        } catch (Exception exception) {
+            log.error("Falha ao processar mensagem WhatsApp do número {}: {}", whatsappId,
+                    exception.getMessage(), exception);
+        }
     }
 
     public String simulateIncomingMessage(String whatsappId, String messageText, String messageId) {
-        return processIncomingMessage(whatsappId, messageText, messageId, false);
+        synchronized (processingLocks.computeIfAbsent(whatsappId, ignored -> new Object())) {
+            return processIncomingMessage(whatsappId, messageText, messageId, false);
+        }
     }
 
     public void updateLastMessageIfHumanAssigned(String whatsappId, String messageText) {
@@ -238,11 +257,18 @@ public class ChatBotService {
          */
         //trim remove os espaços invalidos do texto
         return switch (text.trim()) {
-            case "1" -> { session.setCurrentState(FILAMENTO);           yield BotMessages.getCatalogLink("FILAMENTOS"); }
-            case "2" -> { session.setCurrentState(CATALOGO);            yield BotMessages.getCatalogLink("PRODUTOS"); }
-            case "3" -> { session.setCurrentState(MAQUINAS);            yield BotMessages.getCatalogLink("MAQUINAS"); }
-            case "4" -> { session.setCurrentState(ACESSORIOS);          yield BotMessages.getCatalogLink("ACESSORIOS"); }
-            case "5" -> { session.setCurrentState(ASSUNTO_ATENDIMENTO); yield BotMessages.ATTENDANCE_SUBJECT_MENU; }
+            case "1" -> BotMessages.getCatalogLink("PRODUTOS");
+            case "2" -> {
+                session.setAttendanceSubject("Manutenção de impressoras 3D");
+                session.setCurrentState(DESCRICAO_ATENDIMENTO);
+                yield BotMessages.askProblemDescription(session.getAttendanceSubject());
+            }
+            case "3" -> {
+                session.setAttendanceSubject("Consultoria em impressão 3D");
+                session.setCurrentState(DESCRICAO_ATENDIMENTO);
+                yield BotMessages.askProblemDescription(session.getAttendanceSubject());
+            }
+            case "4" -> { session.setCurrentState(ASSUNTO_ATENDIMENTO); yield BotMessages.ATTENDANCE_SUBJECT_MENU; }
             default  -> BotMessages.INVALID_OPTION + "\n\n" + BotMessages.WELCOME_MENU;
         };
     }

@@ -243,7 +243,7 @@ public class WhatsappSessionStore {
              * Caso raro em que a Evolution não enviou ID.
              * Permitimos o processamento, pois não existe como deduplicar.
              */
-            return false;
+            return true;
         }
 
         String redisKey =

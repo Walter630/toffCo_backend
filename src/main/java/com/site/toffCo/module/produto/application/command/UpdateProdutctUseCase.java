@@ -1,7 +1,8 @@
 package com.site.toffCo.module.produto.application.command;
 
 import com.google.zxing.WriterException;
-import com.site.toffCo.infra.exception.product.ProductNotFound;
+import com.site.toffCo.module.produto.application.command.model.UpdateProductCommand;
+import com.site.toffCo.module.produto.domain.exception.ProductNotFound;
 import com.site.toffCo.module.codigoBarras.service.CodigoBarrasServices;
 import com.site.toffCo.module.produto.presentation.request.ProdutoRequestDTO;
 import com.site.toffCo.module.produto.presentation.response.ProdutoResponseDTO;
@@ -34,7 +35,7 @@ public class UpdateProdutctUseCase {
     @Transactional
     public ProdutoResponseDTO update(
             UUID id,
-            ProdutoRequestDTO produtoDTO
+            UpdateProductCommand command
     ) {
         Produto produto = repository.findById(id)
                 .orElseThrow(() ->
@@ -43,7 +44,7 @@ public class UpdateProdutctUseCase {
                         )
                 );
 
-        mapper.toUpdateEntity(produtoDTO, produto);
+        mapper.toUpdateEntity(command, produto);
 
         /*
          * Caso o update permita remover o código de barras,

@@ -8,6 +8,8 @@ import com.site.toffCo.module.whatzap.service.AttendanceQueueService;
 import com.site.toffCo.module.whatzap.service.BotMessages;
 import com.site.toffCo.module.whatzap.service.ChatBotService;
 import com.site.toffCo.module.whatzap.session.WhatsappSessionStore;
+import com.site.toffCo.module.whatzap.monitoring.WhatsappCircuitBreaker;
+import com.site.toffCo.module.whatzap.monitoring.WhatsappMonitoringService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +31,8 @@ public class WhatsAppController {
     private final WhatsappSessionStore sessionStore;
     private final WhatsappProperties whatsappProperties;
     private final ObjectMapper objectMapper;
+    private final WhatsappCircuitBreaker circuitBreaker;
+    private final WhatsappMonitoringService monitoring;
 
     // Número do atendente vem do properties type-safe
     private String attendantNumber() {
@@ -136,7 +140,7 @@ public class WhatsAppController {
                     sessionStore.isBlocked(number);
 
             if (staticallyBlocked || dynamicallyBlocked) {
-                log.info(
+                log.debug(
                         "Número bloqueado ignorado: number={}, static={}, redis={}",
                         number,
                         staticallyBlocked,
@@ -225,7 +229,7 @@ public class WhatsAppController {
                     text
             );
 
-            chatBotService.processIncomingMessage(
+            chatBotService.processIncomingMessageAsync(
                     number,
                     text,
                     messageId
@@ -267,6 +271,27 @@ public class WhatsAppController {
     @GetMapping("/queue")
     public ResponseEntity<?> getQueue() {
         return ResponseEntity.ok(queueService.getPendingQueue());
+    }
+
+    @GetMapping("/health")
+    public ResponseEntity<Map<String, Object>> health() {
+        WhatsappCircuitBreaker.Snapshot circuit = circuitBreaker.snapshot();
+        WhatsappMonitoringService.Snapshot metrics = monitoring.snapshot();
+        return ResponseEntity.ok(Map.of(
+                "status", circuit.state() == WhatsappCircuitBreaker.State.OPEN ? "DEGRADED" : "UP",
+                "circuit", Map.of(
+                        "state", circuit.state().name(),
+                        "consecutiveFailures", circuit.consecutiveFailures(),
+                        "openedAt", circuit.openedAt() == null ? "" : circuit.openedAt().toString()
+                ),
+                "metrics", Map.of(
+                        "attempts", metrics.attempts(),
+                        "successes", metrics.successes(),
+                        "failures", metrics.failures(),
+                        "circuitBlocked", metrics.circuitBlocked(),
+                        "averageLatencyMs", metrics.averageLatencyMs()
+                )
+        ));
     }
 
     // ─── ENDPOINTS DE BLOCKLIST ───────────────────────────────────
@@ -318,6 +343,12 @@ public class WhatsAppController {
     public ResponseEntity<Map<String, Object>> simulateMessage(
             @RequestBody SimulationRequest request
     ) {
+        if (!whatsappProperties.simulationEnabled()) {
+            return ResponseEntity.status(404).body(Map.of(
+                    "error", "Simulação desativada neste ambiente."
+            ));
+        }
+
         if (request.number() == null
                 || request.number().isBlank()
                 || request.message() == null

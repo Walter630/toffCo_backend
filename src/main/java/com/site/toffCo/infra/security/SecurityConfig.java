@@ -67,7 +67,6 @@ public class SecurityConfig {
                                 "/api/webhook/whatsapp/receive",
                                 "/api/webhook/whatsapp/simulate",
                                 "/api/webhook/set/ToffCoBot",
-                                "/api/webhook/whatsapp/**",
                                 "/webhook/whatsapp/**",
                                 "/instance/create",
                                 "/api/webhooks/odoo/**"

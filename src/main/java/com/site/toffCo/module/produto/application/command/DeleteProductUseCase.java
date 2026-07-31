@@ -1,6 +1,6 @@
 package com.site.toffCo.module.produto.application.command;
 
-import com.site.toffCo.infra.exception.product.ProductNotFound;
+import com.site.toffCo.module.produto.domain.exception.ProductNotFound;
 import com.site.toffCo.module.produto.infrastructure.persistence.ProdutoRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

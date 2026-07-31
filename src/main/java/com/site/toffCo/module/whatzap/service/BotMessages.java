@@ -7,157 +7,70 @@ public class BotMessages {
     private static final Map<String, String[]> CATEGORIAS = Map.of(
             "FILAMENTOS", new String[]{"filamentos", "Filamentos"},
             "PRODUTOS", new String[]{"produtos", "Produtos"},
-            //"MAQUINAS", new String[]{"maquinas", "Máquinas"},
             "ACESSORIOS", new String[]{"acessorios", "Acessórios"},
             "IMPRESSORAS", new String[]{"impressoras", "Impressoras 3D"}
     );
 
     public static final String WELCOME_MENU =
-            """
-                    Olá! 👋 Seja muito bem-vindo à *Toff Brasil*!
-                    
-                    Eu sou a *Carol*, atendente virtual da Toff. Vou agilizar seu atendimento por aqui.
-                    
-                    1️⃣ *Catálogo de Filamentos*
-                    2️⃣ *Catálogo de Produtos*
-                    3️⃣ *Máquinas*
-                    4️⃣ *Acessórios*
-                    5️⃣ *Falar com um atendente*
-                    
-                    _Responda apenas com o número da opção desejada._""";
+            "Olá! 👋 Bem-vindo à *Toff Brasil*!\n\n" +
+            "Sou a Carol, assistente virtual. Como posso ajudar?\n\n" +
+            "1️⃣ Comprar produtos no site\n" +
+            "2️⃣ Manutenção de impressoras 3D\n" +
+            "3️⃣ Consultoria em impressão 3D\n" +
+            "4️⃣ Falar com um atendente\n\n" +
+            "Digite o número da opção.";
 
     public static final String ATTENDANCE_SUBJECT_MENU =
-            """
-                    Certo! Para eu te direcionar para o atendente certo e agilizar seu atendimento, me informe o assunto:
-                    
-                    1️⃣ *Mentoria*
-                    2️⃣ *Manutenção em máquina*
-                    3️⃣ *Compra em atacado acima de 30kg*
-                    4️⃣ *Dúvida sobre catálogo, produto ou máquina*
-                    5️⃣ *Outro assunto*
-                    0️⃣ *Voltar ao menu*
-                    
-                    _Responda apenas com o número da opção._""";
+            "Qual assunto?\n\n" +
+            "1️⃣ Mentoria\n" +
+            "2️⃣ Manutenção\n" +
+            "3️⃣ Compra em atacado\n" +
+            "4️⃣ Dúvida sobre produto/máquina\n" +
+            "5️⃣ Outro assunto\n" +
+            "0️⃣ Voltar ao menu";
 
     public static String askProblemDescription(String subject) {
-        return "Perfeito! ✅\n\n" +
-                "Assunto selecionado: *" + subject + "*.\n\n" +
-                "Agora, em poucas palavras, me conte qual é o problema ou o que você gostaria de resolver.\n\n" +
-                "⚠️ Para agilizar, envie sua mensagem em *texto*. No momento, o atendimento virtual não consegue analisar áudio, vídeo ou imagem com precisão.";
+        return "Assunto: *" + subject + "*.\n\n" +
+                "Descreva o que precisa em uma mensagem de texto.";
     }
 
     public static final String HUMAN_ATTENDANCE =
-            "Obrigado pelas informações! ✅\n\n" +
-                    "Já encaminhei seu atendimento para nossa equipe com o resumo do seu caso.\n\n" +
-                    "Um de nossos especialistas vai te responder por aqui assim que possível.";
+            "Certo! Seu atendimento foi encaminhado.\n\n" +
+            "Nossa equipe responderá por aqui.";
 
-    public static final String BACK_TO_MENU =
-            "Tudo bem, voltamos ao menu principal. 🔙\n\n" +
-                    WELCOME_MENU;
+    public static final String BACK_TO_MENU = "Voltando ao menu. 🔙\n\n" + WELCOME_MENU;
 
-    public static final String INVALID_OPTION =
-            "Não consegui entender essa opção. 😅\n\n" +
-                    "Por favor, responda apenas com o número de uma das opções do menu.";
+    public static final String INVALID_OPTION = "Opção inválida. Digite um número do menu." + WELCOME_MENU;
 
     public static String getCatalogLink(String productName) {
         String[] info = CATEGORIAS.getOrDefault(productName.toUpperCase(), new String[]{"produtos", "Produtos"});
-        String slug = info[0];
-        String tituloAmigavel = info[1];
-
-        return "📦 Confira nosso catálogo completo de *" + tituloAmigavel + "* no site:\n\n" +
-                "🔗 https://toffbr.com.br/catalogo?categoria=" + slug + "\n\n" +
-                "0️⃣ *Voltar ao menu*";
+        return "📦 *" + info[1] + ":*\n" +
+                "https://toffbr.com.br/catalogo?categoria=" + info[0] + "\n\n" +
+                "Digite 0 para voltar.";
     }
 
     public static String managerNotification(String whatsappId, String subject, String description) {
-        /*
-         * Formata o número para exibição legível: 5548999999999 → 55 48 99999-9999
-         * Funciona para celular (13 dígitos com DDI) e fixo (12 dígitos).
-         * Se o formato não bater, exibe o número original sem quebrar.
-         */
         String displayNumber = formatPhoneNumber(whatsappId);
-        String waLink = "https://wa.me/" + whatsappId;
-
-        return "🔔 *Novo atendimento na fila!*\n" +
-                "━━━━━━━━━━━━━━━━━━━━\n\n" +
-                "👤 *Cliente*\n" +
-                "   Número: " + displayNumber + "\n" +
-                "   Link direto: " + waLink + "\n\n" +
-                "🏷 *Assunto*\n" +
-                "   " + subject + "\n\n" +
-                "💬 *Resumo do cliente*\n" +
-                "   _" + description + "_\n\n" +
-                "━━━━━━━━━━━━━━━━━━━━\n" +
-                "➡️ Para atender: `/atender " + whatsappId + "`\n" +
-                "📋 Ver fila completa: `/pendentes`";
+        return "🔔 *Novo atendimento*\n" +
+                "Cliente: " + displayNumber + "\n" +
+                "Assunto: " + subject + "\n" +
+                "Resumo: " + description + "\n\n" +
+                "Para atender: `/atender " + whatsappId + "`";
     }
 
     private static String formatPhoneNumber(String raw) {
         if (raw == null) return "-";
         String digits = raw.replaceAll("\\D", "");
-
-        // DDI (2) + DDD (2) + 9 dígitos = 13 chars → celular com DDI
-        if (digits.length() == 13) {
-            return digits.substring(0, 2) + " " +   // DDI: 55
-                   digits.substring(2, 4) + " " +   // DDD: 48
-                   digits.substring(4, 9) + "-" +   // prefixo: 99999
-                   digits.substring(9);              // sufixo: 9999
-        }
-        // DDI (2) + DDD (2) + 8 dígitos = 12 chars → fixo com DDI
-        if (digits.length() == 12) {
-            return digits.substring(0, 2) + " " +
-                   digits.substring(2, 4) + " " +
-                   digits.substring(4, 8) + "-" +
-                   digits.substring(8);
-        }
-        return raw; // formato desconhecido, exibe como veio
+        if (digits.length() == 13) return digits.substring(0, 2) + " " + digits.substring(2, 4) + " " + digits.substring(4, 9) + "-" + digits.substring(9);
+        if (digits.length() == 12) return digits.substring(0, 2) + " " + digits.substring(2, 4) + " " + digits.substring(4, 8) + "-" + digits.substring(8);
+        return raw;
     }
 
-    /**
-     * Mensagem enviada quando o cliente manda mídia (áudio, foto, vídeo, etc).
-     * Não menciona número de opção — o cliente pode estar em qualquer estado
-     * da sessão, então enviamos o menu junto para não causar confusão.
-     */
     public static String unsupportedMediaMessage(String mediaName) {
-        return switch (mediaName) {
-            case "áudio 🎵" ->
-                "Oi! Recebi seu áudio 🎵, mas infelizmente ainda não consigo ouvir por aqui. 😊\n\n" +
-                "Não se preocupe! É só me *escrever* o que você precisa que eu te ajudo rapidinho.\n\n" +
-                WELCOME_MENU;
-
-            case "imagem 📷" ->
-                "Recebi sua imagem 📷, mas por enquanto não consigo visualizá-la por aqui. 😊\n\n" +
-                "Pode me *descrever em texto* o que você está vendo ou o que precisa?\n\n" +
-                WELCOME_MENU;
-
-            case "vídeo 🎬" ->
-                "Recebi seu vídeo 🎬, mas ainda não tenho como assisti-lo por aqui. 😊\n\n" +
-                "Me *conta em texto* o que você precisa que eu te atendo rapidinho!\n\n" +
-                WELCOME_MENU;
-
-            case "documento 📄" ->
-                "Recebi seu documento 📄, mas por aqui só consigo processar *mensagens de texto* por enquanto. 😊\n\n" +
-                "Se tiver alguma dúvida ou pedido, me *escreve* que eu te ajudo.\n\n" +
-                WELCOME_MENU;
-
-            case "sticker 😄" ->
-                "Haha, gostei do sticker! 😄\n\n" +
-                "Mas para eu te ajudar de verdade, precisa me *escrever* o que você precisa. 😊\n\n" +
-                WELCOME_MENU;
-
-            default ->
-                "Oi! Recebi sua mensagem, mas não consigo processar esse tipo de conteúdo por aqui. 😊\n\n" +
-                "Me *escreve em texto* o que você precisa que eu te atendo!\n\n" +
-                WELCOME_MENU;
-        };
+        return "Recebi " + mediaName + ", mas só consigo ler texto.\n\n" + WELCOME_MENU;
     }
 
     public static final String WAITING_ATTENDANT_WITH_LINK =
-            "Obrigado por me explicar! ✅\n\n" +
-                    "Já encaminhei seu atendimento para nossa equipe com o resumo do seu caso.\n\n" +
-                    "Enquanto um especialista não responde, você pode consultar nosso catálogo por aqui:\n\n" +
-                    "🔗 https://toffbr.com.br/catalogo\n\n" +
-                    "Assim que possível, alguém da nossa equipe continua o atendimento com você.\n\n" +
-                    "Caso queira voltar para falar com a *karol* (bot), Digite *Menu*!!";
-
+            "Atendimento encaminhado. Nossa equipe responderá por aqui.\n\n" +
+            "Para voltar ao bot, digite *menu*.";
 }
