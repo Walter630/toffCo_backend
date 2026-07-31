@@ -104,7 +104,13 @@ public class WhatsAppController {
              * Nesse caso, tentamos usar o remoteJidAlt com o telefone real.
              */
             if (remoteJid.endsWith("@lid")) {
-                remoteJid = key.remoteJidAlt();
+                // Em versões recentes da Evolution/Baileys, o telefone real
+                // pode chegar em senderPn quando remoteJidAlt não existe.
+                remoteJid = firstNonBlank(key.remoteJidAlt(), key.senderPn());
+
+                if (remoteJid != null && !remoteJid.contains("@")) {
+                    remoteJid = remoteJid + "@s.whatsapp.net";
+                }
 
                 if (remoteJid == null
                         || !remoteJid.endsWith("@s.whatsapp.net")) {
@@ -271,6 +277,13 @@ public class WhatsAppController {
     @GetMapping("/queue")
     public ResponseEntity<?> getQueue() {
         return ResponseEntity.ok(queueService.getPendingQueue());
+    }
+
+    private String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first;
+        }
+        return second;
     }
 
     @GetMapping("/health")

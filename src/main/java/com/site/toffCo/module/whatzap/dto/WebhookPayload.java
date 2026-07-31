@@ -14,7 +14,13 @@ public record WebhookPayload(WebhookData data) {
     public record WebhookData(WebhookKey key, WebhookMessage message) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record WebhookKey(String remoteJid, String remoteJidAlt, Boolean fromMe, String id) {}
+    public record WebhookKey(
+            String remoteJid,
+            String remoteJidAlt,
+            String senderPn,
+            Boolean fromMe,
+            String id
+    ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record WebhookMessage(
