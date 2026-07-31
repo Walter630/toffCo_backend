@@ -121,10 +121,8 @@ public class WhatzapService {
                     .uri("/chat/sendPresence/" + this.instanceName)
                     .body(Map.of(
                             "number", number,
-                            "options", Map.of(
-                                    "presence", "composing",
-                                    "delay", 5000
-                            )
+                            "presence", "composing",
+                            "delay", 5000
                     ))
                     .retrieve()
                     .toBodilessEntity();
