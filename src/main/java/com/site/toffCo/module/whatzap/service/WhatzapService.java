@@ -14,6 +14,7 @@ import org.springframework.web.client.RestClientResponseException;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.StructuredTaskScope.Joiner;
 
@@ -22,6 +23,7 @@ import java.util.concurrent.StructuredTaskScope.Joiner;
 public class WhatzapService {
 
     private final RestClient restClient;
+    private final RestClient presenceClient;
     private final String instanceName;
     private final WhatsappCircuitBreaker circuitBreaker;
     private final WhatsappMonitoringService monitoring;
@@ -51,10 +53,17 @@ public class WhatzapService {
 
         var requestFactory = new JdkClientHttpRequestFactory(httpClient);
         requestFactory.setReadTimeout(readTimeout);
+        var presenceRequestFactory = new JdkClientHttpRequestFactory(httpClient);
+        presenceRequestFactory.setReadTimeout(Duration.ofSeconds(2));
         this.restClient = RestClient.builder()
                 .baseUrl(props.url())
                 .defaultHeader("apikey", props.key())
                 .requestFactory(requestFactory)
+                .build();
+        this.presenceClient = RestClient.builder()
+                .baseUrl(props.url())
+                .defaultHeader("apikey", props.key())
+                .requestFactory(presenceRequestFactory)
                 .build();
     }
 
@@ -99,6 +108,29 @@ public class WhatzapService {
             circuitBreaker.recordFailure();
             monitoring.recordFailure(startedAt);
             return false;
+        }
+    }
+
+    /** Mostra "digitando..." sem deixar uma falha de presença impedir a resposta. */
+    public void sendTyping(String number) {
+        if (number == null || number.isBlank()) {
+            return;
+        }
+        try {
+            presenceClient.post()
+                    .uri("/chat/sendPresence/" + this.instanceName)
+                    .body(Map.of(
+                            "number", number,
+                            "options", Map.of(
+                                    "presence", "composing",
+                                    "delay", 5000
+                            )
+                    ))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (Exception exception) {
+            log.debug("Não foi possível mostrar status digitando para {}: {}", number,
+                    exception.getMessage());
         }
     }
 

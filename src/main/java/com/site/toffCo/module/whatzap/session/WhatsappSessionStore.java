@@ -12,6 +12,9 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 @Slf4j
 @Component
@@ -257,6 +260,44 @@ public class WhatsappSessionStore {
                 );
 
         return Boolean.TRUE.equals(created);
+    }
+
+    /**
+     * Deduplica também webhooks sem ID. A Evolution pode reenviar o mesmo
+     * evento sem preencher key.id(); nesse caso usamos cliente + texto + janela
+     * curta de tempo para não responder duas vezes.
+     */
+    public boolean markMessageAsProcessed(String messageId, String whatsappId, String messageText) {
+        if (messageId != null && !messageId.isBlank()) {
+            if (!markMessageAsProcessed(messageId)) {
+                return false;
+            }
+        }
+
+        String normalized = (whatsappId == null ? "" : whatsappId.trim()) + "|" +
+                (messageText == null ? "" : messageText.trim().toLowerCase(Locale.ROOT));
+        long timeBucket = System.currentTimeMillis() / 5000;
+        String fingerprint = sha256(normalized + "|" + timeBucket);
+        Boolean created = redisTemplate.opsForValue().setIfAbsent(
+                PROCESSED_MESSAGE_PREFIX + "fingerprint:" + fingerprint,
+                "1",
+                Duration.ofSeconds(10)
+        );
+        return Boolean.TRUE.equals(created);
+    }
+
+    private String sha256(String value) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder result = new StringBuilder();
+            for (byte item : digest) {
+                result.append(String.format("%02x", item));
+            }
+            return result.toString();
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 indisponível", exception);
+        }
     }
 
     public void clearManagerNotification(String whatsappId) {

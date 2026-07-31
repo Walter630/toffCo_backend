@@ -41,6 +41,7 @@ public class ChatBotService {
     // ─── API PÚBLICA ──────────────────────────────────────────────
 
     public boolean sendResponseClient(String numberClient, String textResponse) {
+        evolutionApiClient.sendTyping(numberClient);
         SendMessageRequest request = new SendMessageRequest(
                 numberClient,
                 textResponse,
@@ -162,7 +163,7 @@ public class ChatBotService {
             String messageId,
             boolean sendToWhatsapp
     ) {
-        if (!sessionStore.markMessageAsProcessed(messageId)) {
+        if (!sessionStore.markMessageAsProcessed(messageId, whatsappId, messageText)) {
             log.info(
                     "Mensagem duplicada ignorada: messageId={}, cliente={}",
                     messageId,
@@ -251,13 +252,21 @@ public class ChatBotService {
         if (text == null || text.isBlank()) {
             return BotMessages.WELCOME_MENU;
         }
+        String normalizedText = text.trim().toLowerCase(java.util.Locale.ROOT);
+        if (normalizedText.matches("oi|olá|ola|bom dia|boa tarde|boa noite")) {
+            return BotMessages.WELCOME_MENU;
+        }
         /*
          * Switch expression (Java 14+ estável): substitui if/else encadeados.
          * Cada case é uma expressão — sem fall-through acidental, sem return espalhado.
          */
         //trim remove os espaços invalidos do texto
-        return switch (text.trim()) {
-            case "1" -> BotMessages.getCatalogLink("PRODUTOS");
+        return switch (normalizedText) {
+            case "1" -> {
+                session.setCurrentState(CATALOGO);
+                session.setCurrentPage(1);
+                yield BotMessages.getCatalogLink("PRODUTOS");
+            }
             case "2" -> {
                 session.setAttendanceSubject("Manutenção de impressoras 3D");
                 session.setCurrentState(DESCRICAO_ATENDIMENTO);
@@ -333,7 +342,7 @@ public class ChatBotService {
         if (text == null || text.isBlank()) {
             return BotMessages.INVALID_OPTION + "\n\n" + BotMessages.getCatalogLink(catalogo);
         }
-        if ("0".equals(text)) {
+        if ("0".equals(text.trim())) {
             session.setCurrentState(MENU_PRINCIPAL);
             session.setCurrentPage(1);
             return BotMessages.BACK_TO_MENU;

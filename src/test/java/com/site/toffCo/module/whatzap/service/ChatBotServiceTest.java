@@ -20,7 +20,7 @@ class ChatBotServiceTest {
     void menuPrincipalTemAsQuatroOpcoesNovas() {
         String number = "5511999999999";
         WhatsappSession session = WhatsappSession.newSession(number);
-        when(sessionStore.markMessageAsProcessed("m1")).thenReturn(true);
+        when(sessionStore.markMessageAsProcessed("m1", number, "oi")).thenReturn(true);
         when(sessionStore.findByWhatsappId(number)).thenReturn(Optional.of(session));
         ChatBotService service = new ChatBotService(sessionStore, evolutionApiClient);
         String response = service.simulateIncomingMessage(number, "oi", "m1");
@@ -35,7 +35,7 @@ class ChatBotServiceTest {
         String number = "5511999999999";
         WhatsappSession session = new WhatsappSession(number, ChatState.MENU_PRINCIPAL, 1, false,
                 null, null, null, null, null, null, null, null);
-        when(sessionStore.markMessageAsProcessed("m2")).thenReturn(true);
+        when(sessionStore.markMessageAsProcessed("m2", number, "2")).thenReturn(true);
         when(sessionStore.findByWhatsappId(number)).thenReturn(Optional.of(session));
         ChatBotService service = new ChatBotService(sessionStore, evolutionApiClient);
         String response = service.simulateIncomingMessage(number, "2", "m2");
@@ -47,7 +47,7 @@ class ChatBotServiceTest {
     @Test
     void mensagemDuplicadaNaoEhProcessadaDuasVezes() {
         String number = "5511999999999";
-        when(sessionStore.markMessageAsProcessed("duplicada")).thenReturn(false);
+        when(sessionStore.markMessageAsProcessed("duplicada", number, "1")).thenReturn(false);
         ChatBotService service = new ChatBotService(sessionStore, evolutionApiClient);
         assertNull(service.simulateIncomingMessage(number, "1", "duplicada"));
         verify(sessionStore, never()).save(any());

@@ -40,7 +40,7 @@ public class BotMessages {
 
     public static final String BACK_TO_MENU = "Voltando ao menu. 🔙\n\n" + WELCOME_MENU;
 
-    public static final String INVALID_OPTION = "Opção inválida. Digite um número do menu." + WELCOME_MENU;
+    public static final String INVALID_OPTION = "Opção inválida. Digite um número do menu.   \n\n" + WELCOME_MENU;
 
     public static String getCatalogLink(String productName) {
         String[] info = CATEGORIAS.getOrDefault(productName.toUpperCase(), new String[]{"produtos", "Produtos"});
