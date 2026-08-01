@@ -53,4 +53,25 @@ class ChatBotServiceTest {
         verify(sessionStore, never()).save(any());
         verifyNoInteractions(evolutionApiClient);
     }
+
+    @Test
+    void respostaDoBotNaoEhInterpretadaComoIntervencaoHumana() {
+        String number = "5511999999999";
+        WhatsappSession session = WhatsappSession.newSession(number);
+
+        when(sessionStore.isResponseDuplicate(number, "menu"))
+                .thenReturn(false);
+        when(sessionStore.findByWhatsappId(number))
+                .thenReturn(Optional.of(session));
+        when(evolutionApiClient.sendMessage(any()))
+                .thenReturn(true);
+
+        ChatBotService service = new ChatBotService(sessionStore, evolutionApiClient);
+
+        assertTrue(service.sendResponseClient(number, "menu"));
+        service.handlePossibleHumanIntervention(number);
+
+        assertFalse(session.isHumanAssigned());
+        assertNotNull(session.getLastBotReplyAt());
+    }
 }

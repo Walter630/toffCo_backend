@@ -30,6 +30,14 @@ public class RabbitMQConfig {
     public static final String LOGIN_QUEUE = "login";
     public static final String LOGIN_ROUTING_KEY = "user.login";
 
+    // ==================== AUTOMAÇÕES N8N ====================
+
+    public static final String N8N_AUTOMATION_QUEUE =
+            "n8n.automation.events";
+
+    public static final String N8N_AUTOMATION_ROUTING_KEY =
+            "n8n.automation";
+
     // ==================== ODOO: NOTA FISCAL ====================
 
     public static final String QUEUE_ODOO_INVOICE =
@@ -118,6 +126,13 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue n8nAutomationQueue() {
+        return QueueBuilder
+                .durable(N8N_AUTOMATION_QUEUE)
+                .build();
+    }
+
+    @Bean
     public Queue odooInvoiceQueue() {
         return QueueBuilder
                 .durable(QUEUE_ODOO_INVOICE)
@@ -190,6 +205,17 @@ public class RabbitMQConfig {
                 .bind(loginQueue)
                 .to(produtoExchange)
                 .with(LOGIN_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding n8nAutomationBinding(
+            @Qualifier("n8nAutomationQueue") Queue n8nAutomationQueue,
+            @Qualifier("produtoExchange") DirectExchange produtoExchange
+    ) {
+        return BindingBuilder
+                .bind(n8nAutomationQueue)
+                .to(produtoExchange)
+                .with(N8N_AUTOMATION_ROUTING_KEY);
     }
 
     @Bean

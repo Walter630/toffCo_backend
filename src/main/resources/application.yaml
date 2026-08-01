@@ -76,8 +76,12 @@ server:
   port: 8081
 
 n8n:
-  alert-webhook-url: ${N8N_ALERT_WEBHOOK_URL:}
+  alert-webhook-url: ${N8N_ALERT_WEBHOOK_URL:https://walterdrx.app.n8n.cloud/webhook/toffco-events-v2}
   review-mode: ${N8N_REVIEW_MODE:false}
+  webhook-secret: ${N8N_WEBHOOK_SECRET:}
+  connect-timeout: ${N8N_CONNECT_TIMEOUT:PT1S}
+  read-timeout: ${N8N_READ_TIMEOUT:PT2S}
+  transport: ${N8N_TRANSPORT:webhook}
 
 evolution:
   api:
@@ -90,7 +94,7 @@ evolution:
       open-duration: ${EVOLUTION_API_CIRCUIT_OPEN_DURATION:PT30S}
 
 whatsapp:
-  simulation-enabled: ${WHATSAPP_SIMULATION_ENABLED:false}
+  simulation-enabled: ${WHATSAPP_SIMULATION_ENABLED:true}
   session:
     ttl: ${WHATSAPP_SESSION_TTL:PT24H}
   attendant-number: ${WHATSAPP_ATTENDANT_NUMBER:}

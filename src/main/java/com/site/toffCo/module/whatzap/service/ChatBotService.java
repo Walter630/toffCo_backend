@@ -14,6 +14,7 @@ import org.springframework.scheduling.annotation.Async;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -57,7 +58,20 @@ public class ChatBotService {
                 2200
         );
 
+        // Marca antes da chamada externa para fechar a janela de corrida:
+        // a Evolution pode emitir o webhook fromMe antes de o POST terminar.
+        markLastBotReply(numberClient);
         boolean send = evolutionApiClient.sendMessage(request);
+
+        if (send) {
+            // Toda mensagem enviada pelo bot precisa deixar uma marca na sessão.
+            // A Evolution também devolve essas mensagens no webhook com fromMe=true;
+            // sem essa marca, o próprio bot seria confundido com um atendente humano.
+            sessionStore.findByWhatsappId(numberClient).ifPresent(session -> {
+                session.setLastBotReplyAt(Instant.now());
+                sessionStore.save(session);
+            });
+        }
 
         if (!send) {
             try {
@@ -68,12 +82,14 @@ public class ChatBotService {
             log.warn("Falha ao send chat response {}", textResponse != null ? textResponse.length() : 0);
         }
 
-       /* sessionStore.findByWhatsappId(numberClient)
-                .ifPresent(session -> {
-                    session.setLastBotReplyAt(Instant.now());
-                    sessionStore.save(session);
-                });*/
-        return send;
+         return send;
+    }
+
+    private void markLastBotReply(String numberClient) {
+        sessionStore.findByWhatsappId(numberClient).ifPresent(session -> {
+            session.setLastBotReplyAt(Instant.now());
+            sessionStore.save(session);
+        });
     }
 
     /**
@@ -239,20 +255,29 @@ public class ChatBotService {
             case MAQUINAS             -> handleCatalogo(session, messageText, "MAQUINAS");
             case ACESSORIOS           -> handleCatalogo(session, messageText, "ACESSORIOS");
             case ASSUNTO_ATENDIMENTO  -> handleAssuntoAtendimento(session, messageText);
-            case DESCRICAO_ATENDIMENTO -> handleDescricaoAtendimento(session, messageText);
+            case DESCRICAO_ATENDIMENTO -> handleDescricaoAtendimento(
+                    session,
+                    messageText,
+                    sendToWhatsapp
+            );
             case ATENDIMENTO_HUMANO   -> null;
         };
 
         sessionStore.save(session);
 
         if (sendToWhatsapp && responseText != null && !responseText.isBlank()) {
+            boolean sent = sendResponseClient(whatsappId, responseText);
+
+            // O envio ao cliente vem primeiro. O n8n só observa o resultado;
+            // ele nunca pode atrasar ou impedir a resposta do WhatsApp.
             evolutionApiClient.notifyBotResponseReview(
+                    messageId,
                     whatsappId,
                     messageText,
                     responseText,
                     session.getCurrentState().name()
             );
-            boolean sent = sendResponseClient(whatsappId, responseText);
+
             if (!sent) {
                 sendResponseClient(whatsappId, BotMessages.SYSTEM_FAILURE);
             }
@@ -337,7 +362,11 @@ public class ChatBotService {
         return BotMessages.askProblemDescription(subject);
     }
 
-    private String handleDescricaoAtendimento(WhatsappSession session, String text) {
+    private String handleDescricaoAtendimento(
+            WhatsappSession session,
+            String text,
+            boolean sendToWhatsapp
+    ) {
         if (text == null || text.isBlank()) {
             return BotMessages.askProblemDescription(session.getAttendanceSubject());
         }
@@ -358,9 +387,15 @@ public class ChatBotService {
          * Salva antes dos envios.
          * Se outro webhook chegar enquanto as mensagens estão sendo enviadas,
          * o bot já saberá que a conversa está em atendimento humano.
-         */
+        */
         sessionStore.save(session);
-        notificarGerente(session, text);
+
+        if (sendToWhatsapp) {
+            notificarGerente(session, text);
+        } else {
+            publishHumanAttendanceRequested(session, text, false, false);
+        }
+
         return null;
     }
 
@@ -442,7 +477,30 @@ public class ChatBotService {
         boolean managerNotified =
                 evolutionApiClient.sendMessage(managerRequest);
 
-        if (!managerNotified) {
+        publishHumanAttendanceRequested(session, message, managerNotified, true);
+    }
+
+    private void publishHumanAttendanceRequested(
+            WhatsappSession session,
+            String message,
+            boolean managerNotified,
+            boolean notificationAttempted
+    ) {
+        String whatsappId = session.getWhatsappId();
+        String subject = session.getAttendanceSubject();
+
+        evolutionApiClient.publishAutomationEvent(
+                "HUMAN_ATTENDANCE_REQUESTED",
+                session.getLastMessageId(),
+                Map.of(
+                        "number", whatsappId,
+                        "subject", subject == null ? "" : subject,
+                        "description", message == null ? "" : message,
+                        "managerNotified", managerNotified
+                )
+        );
+
+        if (notificationAttempted && !managerNotified) {
             /*
              * O envio falhou.
              *

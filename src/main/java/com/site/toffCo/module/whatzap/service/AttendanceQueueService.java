@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
@@ -45,6 +46,14 @@ public class AttendanceQueueService {
         session.setStatus(ChatStatus.IN_PROGRESS);
         session.setAssignedTo(attendantWhatsappId);
         sessionStore.save(session);
+        evolutionApiClient.publishAutomationEvent(
+                "HUMAN_ATTENDANCE_ASSIGNED",
+                "attendance-assigned:" + clientWhatsappId,
+                Map.of(
+                        "number", clientWhatsappId,
+                        "attendantNumber", attendantWhatsappId
+                )
+        );
         return true;
     }
 
@@ -59,6 +68,7 @@ public class AttendanceQueueService {
         session.setAssignedTo(null);
         session.setAttendanceSubject(null);
         sessionStore.save(session);
+        sessionStore.clearManagerNotification(clientWhatsappId);
 
         // Avisa o cliente que pode usar o bot de novo
         evolutionApiClient.sendMessage(new SendMessageRequest(
@@ -66,6 +76,15 @@ public class AttendanceQueueService {
                 "✅ Atendimento finalizado!\n\nSe precisar de mais alguma coisa, é só enviar *menu*.",
                 2200
         ));
+
+        evolutionApiClient.publishAutomationEvent(
+                "HUMAN_ATTENDANCE_RESOLVED",
+                "attendance-resolved:" + clientWhatsappId + ":" +
+                        (session.getHumanAssingnedAt() == null
+                                ? "unknown"
+                                : session.getHumanAssingnedAt().toString()),
+                Map.of("number", clientWhatsappId)
+        );
 
         return true;
     }
