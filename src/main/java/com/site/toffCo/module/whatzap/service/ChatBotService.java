@@ -304,7 +304,7 @@ public class ChatBotService {
             case "4" -> { session.setCurrentState(ASSUNTO_ATENDIMENTO); yield BotMessages.ATTENDANCE_SUBJECT_MENU; }
             // Texto livre no menu nÃ£o deve parecer um erro para o cliente.
             // Mostra o menu novamente e deixa a conversa seguir normalmente.
-            default  -> BotMessages.INVALID_OPTION + "\n\n" + BotMessages.WELCOME_MENU;
+              default  -> BotMessages.WELCOME_MENU;
         };
     }
 
