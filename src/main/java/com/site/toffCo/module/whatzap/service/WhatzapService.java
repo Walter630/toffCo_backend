@@ -1,6 +1,5 @@
 package com.site.toffCo.module.whatzap.service;
 
-import com.site.toffCo.infra.config.EvolutionApiProperties;
 import com.site.toffCo.module.whatzap.dto.SendMessageRequest;
 import com.site.toffCo.module.whatzap.monitoring.WhatsappCircuitBreaker;
 import com.site.toffCo.module.whatzap.monitoring.WhatsappMonitoringService;
@@ -18,29 +17,37 @@ import java.util.Map;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.StructuredTaskScope.Joiner;
 
+/**
+ * Serviço de envio de mensagens WhatsApp.
+ *
+ * ANTES: chamava a Evolution API (intermediário HTTP entre backend e WhatsApp).
+ * AGORA: chama o whatsapp-bridge (Node.js com Baileys direto no WhatsApp).
+ *
+ * A interface pública (sendMessage, sendTyping, etc.) não mudou —
+ * o ChatBotService continua chamando exatamente os mesmos métodos.
+ */
 @Slf4j
 @Service
 public class WhatzapService {
 
     private final RestClient restClient;
     private final RestClient presenceClient;
-    private final String instanceName;
     private final WhatsappCircuitBreaker circuitBreaker;
     private final WhatsappMonitoringService monitoring;
     private final N8nAutomationService n8nAutomationService;
     private final boolean n8nReviewMode;
 
     public WhatzapService(
-            EvolutionApiProperties props,
-            @Value("${evolution.api.read-timeout:PT8S}") Duration readTimeout,
+            @Value("${whatsapp.bridge.url:http://localhost:3100}") String bridgeUrl,
+            @Value("${whatsapp.bridge.secret:}") String bridgeSecret,
+            @Value("${whatsapp.bridge.read-timeout:PT8S}") Duration readTimeout,
             @Value("${n8n.review-mode:false}") boolean n8nReviewMode,
             WhatsappCircuitBreaker circuitBreaker,
             WhatsappMonitoringService monitoring,
             N8nAutomationService n8nAutomationService
     ) {
-        log.info("WhatzapService iniciando - url={}, instance={}", props.url(), props.instance());
+        log.info("WhatzapService iniciando - bridge={}", bridgeUrl);
 
-        this.instanceName = props.instance();
         this.circuitBreaker = circuitBreaker;
         this.monitoring = monitoring;
         this.n8nAutomationService = n8nAutomationService;
@@ -49,23 +56,36 @@ public class WhatzapService {
         var httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();
+
         var requestFactory = new JdkClientHttpRequestFactory(httpClient);
         requestFactory.setReadTimeout(readTimeout);
-        var presenceRequestFactory = new JdkClientHttpRequestFactory(httpClient);
-        presenceRequestFactory.setReadTimeout(Duration.ofSeconds(2));
 
+        var presenceRequestFactory = new JdkClientHttpRequestFactory(httpClient);
+        presenceRequestFactory.setReadTimeout(Duration.ofSeconds(3));
+
+        // Client principal — manda mensagens pro bridge
         this.restClient = RestClient.builder()
-                .baseUrl(props.url())
-                .defaultHeader("apikey", props.key())
+                .baseUrl(bridgeUrl)
+                .defaultHeader("X-Bridge-Secret", bridgeSecret)
+                .defaultHeader("Content-Type", "application/json")
                 .requestFactory(requestFactory)
                 .build();
+
+        // Client de presença — timeout mais curto (não é crítico)
         this.presenceClient = RestClient.builder()
-                .baseUrl(props.url())
-                .defaultHeader("apikey", props.key())
+                .baseUrl(bridgeUrl)
+                .defaultHeader("X-Bridge-Secret", bridgeSecret)
+                .defaultHeader("Content-Type", "application/json")
                 .requestFactory(presenceRequestFactory)
                 .build();
     }
 
+    /**
+     * Envia uma mensagem de texto via WhatsApp Bridge.
+     *
+     * O bridge recebe: { "number": "...", "text": "...", "delay": 2200 }
+     * E manda direto pro WhatsApp via Baileys (sem intermediário).
+     */
     public boolean sendMessage(SendMessageRequest request) {
         if (!circuitBreaker.allowRequest()) {
             monitoring.recordCircuitBlocked();
@@ -76,31 +96,45 @@ public class WhatzapService {
         }
 
         long startedAt = monitoring.startTimer();
-        String url = "/message/sendText/" + instanceName;
 
         try {
+            // O bridge espera: { number, text, delay }
+            // SendMessageRequest já tem esses campos — manda direto
             String responseBody = restClient.post()
-                    .uri(url)
-                    .body(request)
+                    .uri("/send-message")
+                    .body(Map.of(
+                            "number", request.number(),
+                            "text", request.text(),
+                            "delay", request.delay()
+                    ))
                     .retrieve()
                     .body(String.class);
 
-            log.debug("Evolution API respondeu para {}: {}", request.number(), responseBody);
+            log.debug("Bridge respondeu para {}: {}", request.number(), responseBody);
             circuitBreaker.recordSuccess();
             monitoring.recordSuccess(startedAt);
             return true;
         } catch (RestClientResponseException exception) {
             circuitBreaker.recordFailure();
             monitoring.recordFailure(startedAt);
-            log.error("Evolution API recusou mensagem para {}: status={}, body={}",
-                    request.number(), exception.getStatusCode(), exception.getResponseBodyAsString());
+
+            int status = exception.getStatusCode().value();
+
+            // 503 = bridge desconectado do WhatsApp (não é falha permanente)
+            if (status == 503) {
+                log.warn("Bridge desconectado do WhatsApp ao enviar para {}", request.number());
+            } else {
+                log.error("Bridge recusou mensagem para {}: status={}, body={}",
+                        request.number(), status, exception.getResponseBodyAsString());
+            }
+
             publishAutomationEvent("WHATSAPP_SEND_FAILURE", eventWindowId("send-failure:" + request.number()),
-                    Map.of("message", "Evolution retornou HTTP " + exception.getStatusCode()));
+                    Map.of("message", "Bridge retornou HTTP " + status));
             return false;
         } catch (Exception exception) {
             circuitBreaker.recordFailure();
             monitoring.recordFailure(startedAt);
-            log.error("Falha de rede ao contactar Evolution API para {}", request.number(), exception);
+            log.error("Falha de rede ao contactar WhatsApp Bridge para {}", request.number(), exception);
             publishAutomationEvent("WHATSAPP_SEND_FAILURE", eventWindowId("send-failure:" + request.number()),
                     Map.of("message", "Falha de rede: " + exception.getClass().getSimpleName()));
             return false;
@@ -140,6 +174,10 @@ public class WhatzapService {
         ));
     }
 
+    /**
+     * Mostra "digitando..." no chat do cliente.
+     * Agora chama POST /send-presence no bridge.
+     */
     public void sendTyping(String number) {
         if (number == null || number.isBlank()) {
             return;
@@ -147,11 +185,12 @@ public class WhatzapService {
 
         try {
             presenceClient.post()
-                    .uri("/chat/sendPresence/" + instanceName)
-                    .body(Map.of("number", number, "presence", "composing", "delay", 5000))
+                    .uri("/send-presence")
+                    .body(Map.of("number", number, "presence", "composing"))
                     .retrieve()
                     .toBodilessEntity();
         } catch (Exception exception) {
+            // Presença não é crítico — se falhar, a mensagem vai igual
             log.debug("Falha ao mostrar digitando para {}: {}", number, exception.getMessage());
         }
     }

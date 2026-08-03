@@ -13,10 +13,8 @@ import org.springframework.scheduling.annotation.Async;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.Optional;
 
 import static com.site.toffCo.module.whatzap.dto.ChatState.*;
 
@@ -30,7 +28,6 @@ public class ChatBotService {
 
     private final WhatsappSessionStore sessionStore;
     private final WhatzapService evolutionApiClient;
-    private final ConcurrentMap<String, Object> processingLocks = new ConcurrentHashMap<>();
 
     /*
      * Número do atendente/gerente que recebe notificações do bot.
@@ -116,10 +113,25 @@ public class ChatBotService {
     }
 
     public void handlePossibleHumanIntervention(String whatsappId) {
-        // Busca ou cria a sessão — se não existe, o atendente está abrindo
-        // o chat pela primeira vez e o bot nunca deve assumir essa conversa
-        WhatsappSession session = sessionStore.findByWhatsappId(whatsappId)
-                .orElseGet(() -> WhatsappSession.newSession(whatsappId));
+        /*
+         * Busca a sessão existente. Se não existe, significa que o bot
+         * nunca interagiu com esse número — o atendente está conversando
+         * com alguém que nunca passou pelo bot. Nesse caso, NÃO criamos
+         * uma sessão vazia, porque quando o cliente mandar a primeira
+         * mensagem futuramente, ele DEVE receber o menu normalmente.
+         */
+        Optional<WhatsappSession> maybeSession = sessionStore.findByWhatsappId(whatsappId);
+
+        if (maybeSession.isEmpty()) {
+            log.debug(
+                    "Intervenção humana ignorada — sessão inexistente para {}. "
+                            + "Bot nunca interagiu com esse número.",
+                    whatsappId
+            );
+            return;
+        }
+
+        WhatsappSession session = maybeSession.get();
 
         Instant lastReply = session.getLastBotReplyAt();
         boolean isEchoFromBot = lastReply != null
@@ -128,33 +140,45 @@ public class ChatBotService {
         if (!isEchoFromBot && !session.isHumanAssigned()) {
             session.setHumanAssigned(true);
             session.setCurrentState(ChatState.ATENDIMENTO_HUMANO);
+            session.setHumanAssingnedAt(Instant.now());
             sessionStore.save(session);
             log.info("Atendente assumiu manualmente a conversa com {}", whatsappId);
         }
     }
 
     public void processIncomingMessage(String whatsappId, String messageText, String messageId) {
-        synchronized (processingLocks.computeIfAbsent(whatsappId, ignored -> new Object())) {
-            processIncomingMessage(whatsappId, messageText, messageId, true);
-        }
+        processIncomingMessage(whatsappId, messageText, messageId, true);
     }
 
     /** Mantém o webhook rápido mesmo quando a Evolution API estiver lenta. */
     @Async("whatsappBotExecutor")
     public void processIncomingMessageAsync(String whatsappId, String messageText, String messageId) {
+        /*
+         * Lock distribuído via Redis — substitui o synchronized in-memory.
+         * Garante que apenas UMA thread processa mensagens de um número
+         * por vez, mesmo entre instâncias ou após restart.
+         */
+        if (!sessionStore.tryAcquireProcessingLock(whatsappId)) {
+            log.info(
+                    "Mensagem ignorada — processamento já em andamento para {}",
+                    whatsappId
+            );
+            return;
+        }
+
         try {
             processIncomingMessage(whatsappId, messageText, messageId);
         } catch (Exception exception) {
             log.error("Falha ao processar mensagem WhatsApp do número {}: {}", whatsappId,
                     exception.getMessage(), exception);
             sendResponseClient(whatsappId, BotMessages.SYSTEM_FAILURE);
+        } finally {
+            sessionStore.releaseProcessingLock(whatsappId);
         }
     }
 
     public String simulateIncomingMessage(String whatsappId, String messageText, String messageId) {
-        synchronized (processingLocks.computeIfAbsent(whatsappId, ignored -> new Object())) {
-            return processIncomingMessage(whatsappId, messageText, messageId, false);
-        }
+        return processIncomingMessage(whatsappId, messageText, messageId, false);
     }
 
     public void updateLastMessageIfHumanAssigned(String whatsappId, String messageText) {
@@ -205,7 +229,13 @@ public class ChatBotService {
         }
 
         WhatsappSession session = sessionStore.findByWhatsappId(whatsappId)
-                .orElseGet(() -> WhatsappSession.newSession(whatsappId));
+                .orElseGet(() -> {
+                    WhatsappSession newSession = WhatsappSession.newSession(whatsappId);
+                    // Salva imediatamente para que webhooks subsequentes (retries)
+                    // encontrem a sessão e não criem uma nova.
+                    sessionStore.save(newSession);
+                    return newSession;
+                });
 
         session.setLastMessageId(messageId);
 
@@ -266,6 +296,23 @@ public class ChatBotService {
         sessionStore.save(session);
 
         if (sendToWhatsapp && responseText != null && !responseText.isBlank()) {
+            /*
+             * Re-verifica humanAssigned diretamente no Redis antes de enviar.
+             * Isso fecha a janela de corrida: se o gerente mandou uma mensagem
+             * enquanto esta thread processava, o bot NÃO responde por cima.
+             */
+            boolean humanTookOver = sessionStore.findByWhatsappId(whatsappId)
+                    .map(WhatsappSession::isHumanAssigned)
+                    .orElse(false);
+
+            if (humanTookOver) {
+                log.info(
+                        "Atendente assumiu durante processamento. Bot silenciado para {}",
+                        whatsappId
+                );
+                return responseText;
+            }
+
             boolean sent = sendResponseClient(whatsappId, responseText);
 
             // O envio ao cliente vem primeiro. O n8n só observa o resultado;

@@ -267,7 +267,10 @@ public class WhatsappSessionStore {
     /**
      * Deduplica também webhooks sem ID. A Evolution pode reenviar o mesmo
      * evento sem preencher key.id(); nesse caso usamos cliente + texto + janela
-     * curta de tempo para não responder duas vezes.
+     * de tempo para não responder duas vezes.
+     *
+     * Usa janela de 2 minutos (checando bucket atual + anterior) para cobrir
+     * retries da Evolution que podem chegar com 30-60s de atraso.
      */
     public boolean markMessageAsProcessed(String messageId, String whatsappId, String messageText) {
         if (messageId != null && !messageId.isBlank()) {
@@ -278,7 +281,8 @@ public class WhatsappSessionStore {
 
         String normalized = (whatsappId == null ? "" : whatsappId.trim()) + "|" +
                 (messageText == null ? "" : messageText.trim().toLowerCase(Locale.ROOT));
-        long timeBucket = System.currentTimeMillis() / 60_000;
+        // Janela de 2 minutos — diminui chance de retry cair em bucket diferente
+        long timeBucket = System.currentTimeMillis() / 120_000;
         String currentFingerprint = sha256(normalized + "|" + timeBucket);
         String previousFingerprint = sha256(normalized + "|" + (timeBucket - 1));
         String currentKey = PROCESSED_MESSAGE_PREFIX + "fingerprint:" + currentFingerprint;
@@ -292,7 +296,7 @@ public class WhatsappSessionStore {
         Boolean created = redisTemplate.opsForValue().setIfAbsent(
                 currentKey,
                 "1",
-                Duration.ofSeconds(90)
+                Duration.ofMinutes(3)
         );
         return Boolean.TRUE.equals(created);
     }
@@ -360,5 +364,42 @@ public class WhatsappSessionStore {
         }
 
         return digits;
+    }
+
+    // ─── LOCK DISTRIBUÍDO POR NÚMERO ──────────────────────────
+
+    private static final String PROCESSING_LOCK_PREFIX =
+            "toffco:whatsapp:processing-lock:";
+
+    /**
+     * Tenta adquirir um lock distribuído para processar mensagens de um número.
+     * Impede que webhooks repetidos da Evolution sejam processados em paralelo.
+     *
+     * @return true se adquiriu o lock, false se já havia outro processamento ativo.
+     */
+    public boolean tryAcquireProcessingLock(String whatsappId) {
+        if (whatsappId == null || whatsappId.isBlank()) {
+            return true;
+        }
+
+        String key = PROCESSING_LOCK_PREFIX + whatsappId;
+
+        // Lock expira em 30s como safety net — se o processamento travar,
+        // o próximo webhook pode prosseguir.
+        Boolean acquired = redisTemplate.opsForValue()
+                .setIfAbsent(key, "1", Duration.ofSeconds(30));
+
+        return Boolean.TRUE.equals(acquired);
+    }
+
+    /**
+     * Libera o lock distribuído após o processamento da mensagem.
+     */
+    public void releaseProcessingLock(String whatsappId) {
+        if (whatsappId == null || whatsappId.isBlank()) {
+            return;
+        }
+
+        redisTemplate.delete(PROCESSING_LOCK_PREFIX + whatsappId);
     }
 }
