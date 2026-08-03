@@ -239,15 +239,18 @@ public class ChatBotService {
 
         session.setLastMessageId(messageId);
 
-        // Comando de reset: só reseta se NÃO estiver em atendimento humano.
-        // Se estiver com humano, "menu" é ignorado pelo bot — o atendente precisa
-        // usar /finalizar para devolver o controle.
+        // Comando de reset: funciona MESMO em atendimento humano.
+        // O cliente pode voltar ao bot a qualquer momento digitando "menu".
         if (messageText != null
                 && RESET_COMMAND.equalsIgnoreCase(messageText.trim())) {
 
+            // Se estava em atendimento humano, libera a sessão
             if (session.isHumanAssigned()) {
-                sessionStore.save(session);
-                return null;
+                session.setHumanAssigned(false);
+                session.setStatus(ChatStatus.RESOLVED);
+                session.setAssignedTo(null);
+                session.setAttendanceSubject(null);
+                sessionStore.clearManagerNotification(whatsappId);
             }
 
             session.setCurrentState(MENU_PRINCIPAL);
