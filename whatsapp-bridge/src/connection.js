@@ -25,6 +25,7 @@ import { mkdir } from 'fs/promises';
 
 let sock = null;
 let connectionStatus = 'disconnected'; // disconnected | connecting | open
+let ownNumber = null; // Número do WhatsApp conectado (ex: "553488560330")
 let qrRetries = 0;
 const MAX_QR_RETRIES = 15;
 
@@ -40,6 +41,10 @@ export function getSocket() {
 
 export function getStatus() {
     return connectionStatus;
+}
+
+export function getOwnNumber() {
+    return ownNumber;
 }
 
 export function setOnMessageReceived(callback) {
@@ -99,7 +104,12 @@ export async function startConnection(logger) {
         if (connection === 'open') {
             connectionStatus = 'open';
             qrRetries = 0;
-            logger.info('Conectado ao WhatsApp com sucesso!');
+            // Extrai o número conectado do socket (ex: "553488560330:19@s.whatsapp.net" → "553488560330")
+            const meId = sock?.user?.id;
+            if (meId) {
+                ownNumber = meId.split(':')[0].split('@')[0].replace(/\D/g, '');
+            }
+            logger.info({ ownNumber }, 'Conectado ao WhatsApp com sucesso!');
         }
 
         if (connection === 'close') {

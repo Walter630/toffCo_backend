@@ -16,6 +16,8 @@
 const BACKEND_URL = process.env.BACKEND_WEBHOOK_URL || 'http://localhost:8081/api/webhook/whatsapp/receive';
 const BRIDGE_SECRET = process.env.BRIDGE_SECRET || '';
 
+import { getOwnNumber } from './connection.js';
+
 /**
  * Processa uma mensagem crua do Baileys e envia pro backend.
  */
@@ -26,9 +28,47 @@ export async function handleIncomingMessage(msg, logger) {
         if (msg.message?.reactionMessage) return;
         if (msg.message?.protocolMessage) return;
 
-        const remoteJid = msg.key.remoteJid;
+        let remoteJid = msg.key.remoteJid;
         const fromMe = msg.key.fromMe || false;
         const messageId = msg.key.id;
+
+        // ─── RESOLVE LID PARA NÚMERO REAL ─────────────────────────
+        // O Baileys em versões recentes pode enviar JIDs no formato @lid
+        // (Linked ID) em vez de @s.whatsapp.net. O número real pode estar
+        // em msg.key.participant, msg.verifiedBizName, ou precisamos usar
+        // o pushName + participant do próprio Baileys.
+        let senderPn = null;
+
+        if (remoteJid && remoteJid.endsWith('@lid')) {
+            // Em chats privados com LID, o Baileys pode ter o número em:
+            // 1. msg.key.participant (raro em privados, comum em grupos)
+            // 2. msg.pushName (nome, não número)
+            // 3. msg.key.remoteJid pode ser resolvido via sock.store
+            //
+            // A solução mais confiável: usar o participantJid se disponível,
+            // ou o número do próprio dispositivo conectado se fromMe=true.
+            const participant = msg.key.participant;
+
+            if (participant && participant.endsWith('@s.whatsapp.net')) {
+                remoteJid = participant;
+            } else if (fromMe) {
+                // Mensagem enviada por nós mesmos — usar nosso próprio número
+                // O backend trata fromMe=true como ação do atendente
+                senderPn = getOwnNumber();
+                if (senderPn) {
+                    remoteJid = senderPn + '@s.whatsapp.net';
+                }
+            }
+
+            // Se ainda é @lid, tenta extrair o número do participant mesmo sem @s.whatsapp.net
+            if (remoteJid.endsWith('@lid') && participant) {
+                const digits = participant.replace(/\D/g, '');
+                if (digits.length >= 10) {
+                    senderPn = digits;
+                    remoteJid = digits + '@s.whatsapp.net';
+                }
+            }
+        }
 
         // Extrai texto da mensagem (vários formatos possíveis no Baileys)
         const text = extractText(msg.message);
@@ -44,6 +84,13 @@ export async function handleIncomingMessage(msg, logger) {
             mediaType: mediaInfo?.type || 'none',
         }, 'Mensagem recebida do WhatsApp');
 
+        // Se ainda for @lid e não conseguimos resolver, descarta
+        // (o backend rejeitaria de qualquer forma)
+        if (remoteJid.endsWith('@lid')) {
+            logger.warn({ remoteJid, messageId }, 'Não foi possível resolver LID para número real — descartando');
+            return;
+        }
+
         // Monta o payload no formato que o backend Java espera
         // (mesmo formato da Evolution API — WebhookPayload.java)
         const payload = {
@@ -53,9 +100,8 @@ export async function handleIncomingMessage(msg, logger) {
                     remoteJid,
                     fromMe,
                     id: messageId,
-                    // Baileys já resolve o JID real — não precisa de remoteJidAlt
                     remoteJidAlt: null,
-                    senderPn: null,
+                    senderPn: senderPn,
                 },
                 message: {
                     // Texto
