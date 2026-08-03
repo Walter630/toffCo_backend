@@ -26,7 +26,7 @@ import { mkdir } from 'fs/promises';
 let sock = null;
 let connectionStatus = 'disconnected'; // disconnected | connecting | open
 let qrRetries = 0;
-const MAX_QR_RETRIES = 5;
+const MAX_QR_RETRIES = 15;
 
 // Callback que será chamado quando uma mensagem chegar.
 // Definido por quem importa este módulo (message-handler.js).
