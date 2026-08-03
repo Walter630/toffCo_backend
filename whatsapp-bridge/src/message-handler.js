@@ -8,9 +8,11 @@
  * 4. Monta um payload NO MESMO FORMATO que a Evolution API mandava
  * 5. Faz POST pro backend Java no endpoint /api/webhook/whatsapp/receive
  *
- * Por que manter o mesmo formato?
- * Porque o backend Java já sabe parsear esse payload (WebhookPayload.java).
- * Assim a migração é transparente — o backend não precisa mudar o controller.
+ * REGRA FUNDAMENTAL:
+ * - remoteJid SEMPRE representa o OUTRO LADO da conversa (o cliente).
+ * - Quando fromMe=false → remoteJid = quem mandou a mensagem (cliente)
+ * - Quando fromMe=true  → remoteJid = pra quem o gerente mandou (cliente)
+ * - Em ambos os casos, o backend precisa receber o NÚMERO DO CLIENTE.
  */
 
 const BACKEND_URL = process.env.BACKEND_WEBHOOK_URL || 'http://localhost:8081/api/webhook/whatsapp/receive';
@@ -32,28 +34,27 @@ export async function handleIncomingMessage(msg, logger) {
         const fromMe = msg.key.fromMe || false;
         const messageId = msg.key.id;
 
-        // ─── RESOLVE LID PARA NÚMERO REAL ─────────────────────────
-        // O Baileys em versões recentes pode enviar JIDs no formato @lid
-        // (Linked ID) em vez de @s.whatsapp.net. Usamos o mapa de contatos
-        // (preenchido pelo evento contacts.upsert) pra resolver.
+        // Ignora mensagens de grupo
+        if (remoteJid && remoteJid.endsWith('@g.us')) return;
+
+        // ─── RESOLVE LID PARA NÚMERO/IDENTIFICADOR ────────────────
+        //
+        // O remoteJid SEMPRE representa o CLIENTE (o outro lado):
+        // - fromMe=false → cliente mandou mensagem pro gerente
+        // - fromMe=true  → gerente mandou mensagem pro cliente
+        //
+        // Em ambos os casos, precisamos resolver o LID do CLIENTE.
         let senderPn = null;
 
         if (remoteJid && remoteJid.endsWith('@lid')) {
-            // Tenta resolver pelo mapa LID → número
+            // 1. Tenta resolver pelo mapa de contatos
             const resolvedNumber = resolveLid(remoteJid);
 
             if (resolvedNumber) {
                 senderPn = resolvedNumber;
                 remoteJid = resolvedNumber + '@s.whatsapp.net';
-            } else if (fromMe) {
-                // Mensagem enviada por nós mesmos — usar nosso próprio número
-                const own = getOwnNumber();
-                if (own) {
-                    senderPn = own;
-                    remoteJid = own + '@s.whatsapp.net';
-                }
             } else {
-                // Tenta participant como fallback
+                // 2. Tenta participant como fallback
                 const participant = msg.key.participant;
                 if (participant && participant.endsWith('@s.whatsapp.net')) {
                     remoteJid = participant;
@@ -66,21 +67,17 @@ export async function handleIncomingMessage(msg, logger) {
                 }
             }
 
-            // Último recurso: passa o LID como "número" pro backend.
-            // O Baileys aceita enviar mensagens de volta pra JIDs @lid,
-            // então o bot ainda vai conseguir responder esse cliente.
+            // 3. Último recurso: usa o LID como identificador
             if (remoteJid.endsWith('@lid')) {
                 const lidAsNumber = remoteJid.replace('@lid', '');
                 senderPn = lidAsNumber;
                 remoteJid = lidAsNumber + '@s.whatsapp.net';
-                // Registra pra quando o backend mandar a resposta,
-                // o bridge saber que esse "número" é na verdade um LID
                 registerLidMapping(lidAsNumber);
-                logger.info({ lid: lidAsNumber, messageId }, 'LID não resolvido — usando como identificador direto');
+                logger.debug({ lid: lidAsNumber, messageId, fromMe }, 'LID usado como identificador direto');
             }
         }
 
-        // Extrai texto da mensagem (vários formatos possíveis no Baileys)
+        // Extrai texto da mensagem
         const text = extractText(msg.message);
 
         // Detecta tipo de mídia
@@ -95,7 +92,6 @@ export async function handleIncomingMessage(msg, logger) {
         }, 'Mensagem recebida do WhatsApp');
 
         // Monta o payload no formato que o backend Java espera
-        // (mesmo formato da Evolution API — WebhookPayload.java)
         const payload = {
             event: 'messages.upsert',
             data: {
@@ -107,10 +103,8 @@ export async function handleIncomingMessage(msg, logger) {
                     senderPn: senderPn,
                 },
                 message: {
-                    // Texto
                     conversation: text,
                     extendedTextMessage: null,
-                    // Mídias — o backend só verifica se o campo existe (não null)
                     audioMessage: mediaInfo?.type === 'audio' ? {} : null,
                     imageMessage: mediaInfo?.type === 'image' ? {} : null,
                     videoMessage: mediaInfo?.type === 'video' ? {} : null,
@@ -128,69 +122,37 @@ export async function handleIncomingMessage(msg, logger) {
                 'X-Bridge-Secret': BRIDGE_SECRET,
             },
             body: JSON.stringify(payload),
-            signal: AbortSignal.timeout(10_000), // timeout de 10s
+            signal: AbortSignal.timeout(10_000),
         });
 
         if (!response.ok) {
-            logger.warn({
-                status: response.status,
-                messageId,
-            }, 'Backend retornou erro ao receber mensagem');
+            logger.warn({ status: response.status, messageId }, 'Backend retornou erro');
         }
     } catch (error) {
-        logger.error({
-            error: error.message,
-            messageId: msg?.key?.id,
-        }, 'Falha ao repassar mensagem pro backend');
+        logger.error({ error: error.message, messageId: msg?.key?.id }, 'Falha ao repassar mensagem pro backend');
     }
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────
 
-/**
- * Extrai o texto de uma mensagem do Baileys.
- * O Baileys pode mandar o texto em vários campos diferentes
- * dependendo do tipo de mensagem.
- */
 function extractText(message) {
     if (!message) return null;
-
-    // Texto simples
     if (message.conversation) return message.conversation;
-
-    // Texto com formatação/link
     if (message.extendedTextMessage?.text) return message.extendedTextMessage.text;
-
-    // Legenda de imagem/vídeo/documento
     if (message.imageMessage?.caption) return message.imageMessage.caption;
     if (message.videoMessage?.caption) return message.videoMessage.caption;
     if (message.documentMessage?.caption) return message.documentMessage.caption;
-
-    // Botões (respostas)
-    if (message.buttonsResponseMessage?.selectedDisplayText) {
-        return message.buttonsResponseMessage.selectedDisplayText;
-    }
-
-    // Lista (respostas)
-    if (message.listResponseMessage?.title) {
-        return message.listResponseMessage.title;
-    }
-
+    if (message.buttonsResponseMessage?.selectedDisplayText) return message.buttonsResponseMessage.selectedDisplayText;
+    if (message.listResponseMessage?.title) return message.listResponseMessage.title;
     return null;
 }
 
-/**
- * Detecta se a mensagem contém mídia.
- * Retorna { type: 'audio'|'image'|'video'|'document'|'sticker' } ou null.
- */
 function detectMedia(message) {
     if (!message) return null;
-
     if (message.audioMessage) return { type: 'audio' };
     if (message.imageMessage) return { type: 'image' };
     if (message.videoMessage) return { type: 'video' };
     if (message.documentMessage) return { type: 'document' };
     if (message.stickerMessage) return { type: 'sticker' };
-
     return null;
 }

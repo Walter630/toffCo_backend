@@ -46,45 +46,51 @@ public class WhatsappSessionStore {
     // do estado da sessão. Persiste no Redis — sem reiniciar o servidor.
 
     public void blockNumber(String number) {
-        String normalized = normalizeNumber(number);
-
-        if (normalized.isBlank()) {
+        if (number == null || number.isBlank()) {
             return;
         }
 
-        redisTemplate.opsForSet().add(
-                BLOCKLIST_KEY,
-                normalized
-        );
+        // Salva apenas os dígitos, sem normalização de nono dígito.
+        // Isso garante que LIDs e números reais são bloqueados tal como chegam.
+        String clean = number.replaceAll("\\D", "");
 
-        log.info("Número bloqueado: {}", normalized);
+        if (clean.isBlank()) {
+            return;
+        }
+
+        redisTemplate.opsForSet().add(BLOCKLIST_KEY, clean);
+        log.info("Número bloqueado: {}", clean);
     }
 
     public void unblockNumber(String number) {
-        String normalized = normalizeNumber(number);
-
-        if (normalized.isBlank()) {
+        if (number == null || number.isBlank()) {
             return;
         }
 
-        redisTemplate.opsForSet().remove(
-                BLOCKLIST_KEY,
-                normalized
-        );
+        String clean = number.replaceAll("\\D", "");
 
-        log.info("Número desbloqueado: {}", normalized);
+        if (clean.isBlank()) {
+            return;
+        }
+
+        redisTemplate.opsForSet().remove(BLOCKLIST_KEY, clean);
+        log.info("Número desbloqueado: {}", clean);
     }
 
     public boolean isBlocked(String number) {
-        String normalized = normalizeNumber(number);
-
-        if (normalized.isBlank()) {
+        if (number == null || number.isBlank()) {
             return false;
         }
 
+        String clean = number.replaceAll("\\D", "");
+
+        if (clean.isBlank()) {
+            return false;
+        }
+
+        // Verifica direto (pode ser LID ou número real)
         return Boolean.TRUE.equals(
-                redisTemplate.opsForSet()
-                        .isMember(BLOCKLIST_KEY, normalized)
+                redisTemplate.opsForSet().isMember(BLOCKLIST_KEY, clean)
         );
     }
 

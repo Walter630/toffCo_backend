@@ -70,7 +70,9 @@ public class SecurityConfig {
                                 "/webhook/whatsapp/**",
                                 "/instance/create",
                                 "/api/webhooks/odoo/**",
-                                "/api/health/**"
+                                "/api/health/**",
+                                "/api/bot/dashboard",
+                                "/api/bot/dashboard/**"
                         ).permitAll()
 
                         .requestMatchers(HttpMethod.POST,

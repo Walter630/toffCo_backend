@@ -326,6 +326,23 @@ public class WhatsAppController {
         return ResponseEntity.ok(sessionStore.getBlocklist());
     }
 
+    /**
+     * Bloqueia vários números/LIDs de uma vez.
+     * Body: ["205192532328666", "36125053833286", ...]
+     */
+    @PostMapping("/blocklist/bulk")
+    public ResponseEntity<?> blockBulk(@RequestBody java.util.List<String> numbers) {
+        int count = 0;
+        for (String number : numbers) {
+            String clean = number.replaceAll("\\D", "");
+            if (!clean.isBlank()) {
+                sessionStore.blockNumber(clean);
+                count++;
+            }
+        }
+        return ResponseEntity.ok(Map.of("blocked", count));
+    }
+
     @PostMapping("/queue/{clientNumber}/assign")
     public ResponseEntity<?> assignAttendant(
             @PathVariable String clientNumber,

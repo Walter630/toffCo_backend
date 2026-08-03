@@ -3,6 +3,7 @@ package com.site.toffCo.module.whatzap.service;
 import com.site.toffCo.module.whatzap.dto.ChatState;
 import com.site.toffCo.module.whatzap.dto.ChatStatus;
 import com.site.toffCo.module.whatzap.dto.SendMessageRequest;
+import com.site.toffCo.module.whatzap.monitoring.MessageLogService;
 import com.site.toffCo.module.whatzap.session.WhatsappSession;
 import com.site.toffCo.module.whatzap.session.WhatsappSessionStore;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class ChatBotService {
 
     private final WhatsappSessionStore sessionStore;
     private final WhatzapService evolutionApiClient;
+    private final MessageLogService messageLog;
 
     /*
      * Número do atendente/gerente que recebe notificações do bot.
@@ -61,6 +63,9 @@ public class ChatBotService {
         boolean send = evolutionApiClient.sendMessage(request);
 
         if (send) {
+            // Registra no painel de monitoramento
+            messageLog.logSent(numberClient, textResponse);
+
             // Toda mensagem enviada pelo bot precisa deixar uma marca na sessão.
             // A Evolution também devolve essas mensagens no webhook com fromMe=true;
             // sem essa marca, o próprio bot seria confundido com um atendente humano.
@@ -228,6 +233,9 @@ public class ChatBotService {
             return null;
         }
 
+        // Registra no painel de monitoramento
+        messageLog.logReceived(whatsappId, messageText);
+
         WhatsappSession session = sessionStore.findByWhatsappId(whatsappId)
                 .orElseGet(() -> {
                     WhatsappSession newSession = WhatsappSession.newSession(whatsappId);
@@ -239,18 +247,15 @@ public class ChatBotService {
 
         session.setLastMessageId(messageId);
 
-        // Comando de reset: funciona MESMO em atendimento humano.
-        // O cliente pode voltar ao bot a qualquer momento digitando "menu".
+        // Comando de reset: NÃO funciona em atendimento humano.
+        // O cliente precisa esperar o atendente ou o gerente usar /finalizar.
         if (messageText != null
                 && RESET_COMMAND.equalsIgnoreCase(messageText.trim())) {
 
-            // Se estava em atendimento humano, libera a sessão
             if (session.isHumanAssigned()) {
-                session.setHumanAssigned(false);
-                session.setStatus(ChatStatus.RESOLVED);
-                session.setAssignedTo(null);
-                session.setAttendanceSubject(null);
-                sessionStore.clearManagerNotification(whatsappId);
+                // Silencia — o gerente está no controle
+                sessionStore.save(session);
+                return null;
             }
 
             session.setCurrentState(MENU_PRINCIPAL);
@@ -427,6 +432,8 @@ public class ChatBotService {
         session.setHumanAssingnedAt(Instant.now());
         session.setLastMessage(text);
         session.setResolvedBy("HUMANO");
+
+        messageLog.logEvent(session.getWhatsappId(), "Atendimento humano solicitado — Assunto: " + session.getAttendanceSubject());
 
         /*
          * notificarGerente envia WAITING_ATTENDANT_WITH_LINK ao cliente
