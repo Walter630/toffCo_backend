@@ -2,6 +2,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Git é necessário porque o Baileys puxa dependências de repositórios git
+RUN apk add --no-cache git
+
 # Instala dependências primeiro (cache do Docker)
 COPY package.json ./
 RUN npm install --omit=dev
