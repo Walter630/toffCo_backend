@@ -29,6 +29,10 @@ let ownNumber = null; // Número do WhatsApp conectado (ex: "553488560330")
 let qrRetries = 0;
 const MAX_QR_RETRIES = 15;
 
+// Mapa LID → número real (ex: "205192532328666" → "5534984114981")
+// Preenchido automaticamente quando o Baileys emite contatos.
+const lidToNumber = new Map();
+
 // Callback que será chamado quando uma mensagem chegar.
 // Definido por quem importa este módulo (message-handler.js).
 let onMessageReceived = null;
@@ -45,6 +49,16 @@ export function getStatus() {
 
 export function getOwnNumber() {
     return ownNumber;
+}
+
+/**
+ * Tenta resolver um LID para o número real.
+ * Ex: "205192532328666" → "5534984114981"
+ */
+export function resolveLid(lid) {
+    if (!lid) return null;
+    const clean = lid.replace('@lid', '').replace('@s.whatsapp.net', '').replace(/\D/g, '');
+    return lidToNumber.get(clean) || null;
 }
 
 export function setOnMessageReceived(callback) {
@@ -152,5 +166,58 @@ export async function startConnection(logger) {
         }
     });
 
+    // ─── MAPEAMENTO LID → NÚMERO ─────────────────────────────
+    // O Baileys emite contatos com lid e número real.
+    // Usamos isso pra resolver JIDs @lid → @s.whatsapp.net.
+
+    sock.ev.on('contacts.upsert', (contacts) => {
+        for (const contact of contacts) {
+            mapContact(contact);
+        }
+        logger.info({ lidMapSize: lidToNumber.size }, 'Contatos atualizados no mapa LID');
+    });
+
+    sock.ev.on('contacts.update', (contacts) => {
+        for (const contact of contacts) {
+            mapContact(contact);
+        }
+    });
+
+    sock.ev.on('messaging-history.set', ({ contacts }) => {
+        if (contacts) {
+            for (const contact of contacts) {
+                mapContact(contact);
+            }
+            logger.info({ lidMapSize: lidToNumber.size }, 'Histórico de contatos carregado no mapa LID');
+        }
+    });
+
     return sock;
+}
+
+/**
+ * Extrai o mapeamento LID → número de um contato do Baileys.
+ * O Baileys pode mandar: { id: "xxx@lid", lid: "xxx@lid", name: "...", notify: "..." }
+ * E em alguns casos: { id: "55xxx@s.whatsapp.net", lid: "xxx@lid" }
+ */
+function mapContact(contact) {
+    if (!contact) return;
+
+    const id = contact.id || '';
+    const lid = contact.lid || '';
+
+    // Caso 1: id é @s.whatsapp.net e lid é @lid → mapeia lid → número
+    if (id.endsWith('@s.whatsapp.net') && lid.endsWith('@lid')) {
+        const number = id.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+        const lidClean = lid.replace('@lid', '').replace(/\D/g, '');
+        if (number && lidClean) {
+            lidToNumber.set(lidClean, number);
+        }
+    }
+
+    // Caso 2: id é @lid mas tem verifiedName ou notify com número
+    // (raro, mas cobre edge cases)
+    if (id.endsWith('@lid') && contact.verifiedName) {
+        // verifiedName geralmente é o nome, não o número — ignoramos
+    }
 }
