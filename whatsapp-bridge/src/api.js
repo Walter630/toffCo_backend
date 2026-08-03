@@ -13,7 +13,7 @@
  */
 
 import express from 'express';
-import { getSocket, getStatus } from './connection.js';
+import { getSocket, getStatus, resolveJidForSend } from './connection.js';
 
 const BRIDGE_SECRET = process.env.BRIDGE_SECRET || '';
 
@@ -59,7 +59,8 @@ export function createApi(logger) {
             }
 
             // Formata o JID (formato que o Baileys espera)
-            const jid = formatJid(number);
+            // Se o número é um LID registrado, envia pra @lid direto
+            const jid = resolveJidForSend(number);
 
             // Delay opcional (simula tempo de leitura antes de responder)
             if (delay && delay > 0) {
@@ -100,7 +101,7 @@ export function createApi(logger) {
                 return res.status(503).json({ error: 'WhatsApp desconectado' });
             }
 
-            const jid = formatJid(number);
+            const jid = resolveJidForSend(number);
             const presenceType = presence || 'composing';
 
             await sock.presenceSubscribe(jid);
@@ -133,17 +134,6 @@ export function createApi(logger) {
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────
-
-/**
- * Converte número pra JID do WhatsApp.
- * Entrada: "5534984114981" ou "5534984114981@s.whatsapp.net"
- * Saída: "5534984114981@s.whatsapp.net"
- */
-function formatJid(number) {
-    // Remove tudo que não é dígito
-    const clean = number.replace(/\D/g, '');
-    return clean.includes('@') ? number : `${clean}@s.whatsapp.net`;
-}
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));

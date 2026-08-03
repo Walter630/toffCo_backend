@@ -16,7 +16,7 @@
 const BACKEND_URL = process.env.BACKEND_WEBHOOK_URL || 'http://localhost:8081/api/webhook/whatsapp/receive';
 const BRIDGE_SECRET = process.env.BRIDGE_SECRET || '';
 
-import { getOwnNumber, resolveLid } from './connection.js';
+import { getOwnNumber, resolveLid, registerLidMapping } from './connection.js';
 
 /**
  * Processa uma mensagem crua do Baileys e envia pro backend.
@@ -39,8 +39,6 @@ export async function handleIncomingMessage(msg, logger) {
         let senderPn = null;
 
         if (remoteJid && remoteJid.endsWith('@lid')) {
-            const lidDigits = remoteJid.replace('@lid', '').replace(/\D/g, '');
-
             // Tenta resolver pelo mapa LID → número
             const resolvedNumber = resolveLid(remoteJid);
 
@@ -67,6 +65,19 @@ export async function handleIncomingMessage(msg, logger) {
                     }
                 }
             }
+
+            // Último recurso: passa o LID como "número" pro backend.
+            // O Baileys aceita enviar mensagens de volta pra JIDs @lid,
+            // então o bot ainda vai conseguir responder esse cliente.
+            if (remoteJid.endsWith('@lid')) {
+                const lidAsNumber = remoteJid.replace('@lid', '');
+                senderPn = lidAsNumber;
+                remoteJid = lidAsNumber + '@s.whatsapp.net';
+                // Registra pra quando o backend mandar a resposta,
+                // o bridge saber que esse "número" é na verdade um LID
+                registerLidMapping(lidAsNumber);
+                logger.info({ lid: lidAsNumber, messageId }, 'LID não resolvido — usando como identificador direto');
+            }
         }
 
         // Extrai texto da mensagem (vários formatos possíveis no Baileys)
@@ -82,13 +93,6 @@ export async function handleIncomingMessage(msg, logger) {
             hasText: !!text,
             mediaType: mediaInfo?.type || 'none',
         }, 'Mensagem recebida do WhatsApp');
-
-        // Se ainda for @lid e não conseguimos resolver, descarta
-        // (o backend rejeitaria de qualquer forma)
-        if (remoteJid.endsWith('@lid')) {
-            logger.warn({ remoteJid, messageId }, 'Não foi possível resolver LID para número real — descartando');
-            return;
-        }
 
         // Monta o payload no formato que o backend Java espera
         // (mesmo formato da Evolution API — WebhookPayload.java)

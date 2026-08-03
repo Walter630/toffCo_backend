@@ -33,6 +33,9 @@ const MAX_QR_RETRIES = 15;
 // Preenchido automaticamente quando o Baileys emite contatos.
 const lidToNumber = new Map();
 
+// Mapa reverso: número → LID (pra enviar mensagens de volta)
+const numberToLid = new Map();
+
 // Callback que será chamado quando uma mensagem chegar.
 // Definido por quem importa este módulo (message-handler.js).
 let onMessageReceived = null;
@@ -59,6 +62,34 @@ export function resolveLid(lid) {
     if (!lid) return null;
     const clean = lid.replace('@lid', '').replace('@s.whatsapp.net', '').replace(/\D/g, '');
     return lidToNumber.get(clean) || null;
+}
+
+/**
+ * Dado um "número" (que pode ser um LID usado como identificador),
+ * retorna o JID correto pra enviar mensagem.
+ * Se o número está no mapa reverso, retorna lid@lid.
+ * Senão, retorna numero@s.whatsapp.net.
+ */
+export function resolveJidForSend(number) {
+    if (!number) return null;
+    const clean = number.replace(/\D/g, '');
+    // Se esse "número" é na verdade um LID que salvamos antes
+    const lid = numberToLid.get(clean);
+    if (lid) return lid + '@lid';
+    return clean + '@s.whatsapp.net';
+}
+
+/**
+ * Registra que um determinado "número" (LID como identificador)
+ * deve ser endereçado via @lid no envio.
+ */
+export function registerLidMapping(lidDigits) {
+    if (!lidDigits) return;
+    const clean = lidDigits.replace(/\D/g, '');
+    // Mapeia o LID pra ele mesmo (número → LID)
+    // Porque o backend vai receber o LID como "número" e precisa
+    // enviar de volta pro mesmo LID
+    numberToLid.set(clean, clean);
 }
 
 export function setOnMessageReceived(callback) {
@@ -212,6 +243,7 @@ function mapContact(contact) {
         const lidClean = lid.replace('@lid', '').replace(/\D/g, '');
         if (number && lidClean) {
             lidToNumber.set(lidClean, number);
+            numberToLid.set(number, lidClean);
         }
     }
 
