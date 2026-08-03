@@ -72,7 +72,8 @@ public class SecurityConfig {
                                 "/api/webhooks/odoo/**",
                                 "/api/health/**",
                                 "/api/bot/dashboard",
-                                "/api/bot/dashboard/**"
+                                "/api/bot/dashboard/**",
+                                "/api/webhook/whatsapp/blocklist/bulk"
                         ).permitAll()
 
                         .requestMatchers(HttpMethod.POST,
