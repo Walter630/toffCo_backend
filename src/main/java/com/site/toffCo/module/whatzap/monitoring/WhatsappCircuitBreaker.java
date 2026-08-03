@@ -35,4 +35,11 @@ public class WhatsappCircuitBreaker {
     public synchronized void recordFailure() { consecutiveFailures++; if (consecutiveFailures >= failureThreshold) { state = State.OPEN; openedAt = Instant.now(); recoveryProbeInProgress = false; } }
     public synchronized Snapshot snapshot() { return new Snapshot(state, consecutiveFailures, openedAt); }
     public record Snapshot(State state, int consecutiveFailures, Instant openedAt) {}
+    public synchronized boolean isOpen() {
+        if (state == State.OPEN && openedAt.plus(openDuration).isBefore(Instant.now())) {
+            state = State.HALF_OPEN;
+            recoveryProbeInProgress = true;
+        }
+        return state == State.OPEN;
+    }
 }

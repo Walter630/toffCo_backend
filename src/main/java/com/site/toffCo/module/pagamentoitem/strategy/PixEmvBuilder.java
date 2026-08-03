@@ -1,15 +1,17 @@
 package com.site.toffCo.module.pagamentoitem.strategy;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
-public class PixEmvBuilder {
+public class                                                                                                                                                                                                           PixEmvBuilder {
     private static final String CHAVE_PIX = "65648940000137";
     private static final String NOME_RECEBEDOR = "TOFF BRASIL";
     private static final String CIDADE = "UBERLANDIA";
 
     public static String gerarPayload(BigDecimal valor, UUID pedidoId) {
-        String valorFormatado = valor.setScale(2, BigDecimal.ROUND_HALF_UP).toString();
+        String valorFormatado = valor.setScale(2, RoundingMode.HALF_UP).toString();
         String txid = pedidoId.toString().replaceAll("-", "").substring(0, 25);
 
         String merchantAccountInfo =
@@ -50,7 +52,7 @@ public class PixEmvBuilder {
         int polinomio = 0x1021;
         int resultado = 0xFFFF;
 
-        byte[] bytes = payload.getBytes();
+        byte[] bytes = payload.getBytes(StandardCharsets.UTF_8);
         for (byte b : bytes) {
             resultado ^= (b << 8);
             for (int i = 0; i < 8; i++) {
