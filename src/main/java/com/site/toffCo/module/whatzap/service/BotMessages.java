@@ -76,6 +76,5 @@ public class BotMessages {
     }
 
     public static final String WAITING_ATTENDANT_WITH_LINK =
-            "Atendimento encaminhado. Nossa equipe responderá por aqui.\n\n" +
-            "Para voltar ao bot, digite *menu*.";
+            "Atendimento encaminhado. Nossa equipe responderá por aqui.\n\n";
 }

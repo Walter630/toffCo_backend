@@ -51,10 +51,25 @@ public class ChatBotService {
             log.warn("Idempotência indisponível; enviando resposta normalmente: {}", exception.getMessage());
         }
         evolutionApiClient.sendTyping(numberClient);
+        //Delay para o bot verificar se o gerente respondeu ou nao
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        }
+
+        //re-verificação
+        if (sessionStore.findByWhatsappId(numberClient)
+                .map(WhatsappSession::isHumanAssigned)
+                .orElse(false)) {
+            log.info("Gerente respondeu durante o typing. Bot Silencia para {}", numberClient);
+            return false;
+        }
+
         SendMessageRequest request = new SendMessageRequest(
                 numberClient,
                 textResponse,
-                2200
+                500
         );
 
         // Marca antes da chamada externa para fechar a janela de corrida:
