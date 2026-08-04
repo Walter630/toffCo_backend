@@ -130,6 +130,45 @@ export function createApi(logger) {
         });
     });
 
+    // ─── POST /resolve-numbers ────────────────────────────────
+    app.post('/resolve-numbers', async (req, res) => {
+        try {
+            const { numbers } = req.body;
+            if (!numbers || !Array.isArray(numbers)) {
+                return res.status(400).json({ error: 'Campo "numbers" (array) obrigatório' });
+            }
+            const sock = getSocket();
+            if (!sock || getStatus() !== 'open') {
+                return res.status(503).json({ error: 'WhatsApp desconectado' });
+            }
+            const mappings = {};
+            for (let i = 0; i < numbers.length; i += 5) {
+                const batch = numbers.slice(i, i + 5);
+                const jids = batch.map(n => n.replace(/\D/g, '') + '@s.whatsapp.net');
+                try {
+                    const results = await sock.onWhatsApp(...jids);
+                    for (const result of results) {
+                        if (result.exists) {
+                            const phone = result.jid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+                            if (result.lid) {
+                                const lid = result.lid.replace('@lid', '');
+                                mappings[phone] = lid;
+                            }
+                        }
+                    }
+                } catch (batchError) {
+                    logger.warn({ error: batchError.message }, 'Erro ao resolver lote');
+                }
+                if (i + 5 < numbers.length) await sleep(300);
+            }
+            logger.info({ resolved: Object.keys(mappings).length, total: numbers.length }, 'Números resolvidos');
+            return res.json({ mappings });
+        } catch (error) {
+            logger.error({ error: error.message }, 'Falha ao resolver números');
+            return res.status(500).json({ error: error.message });
+        }
+    });
+
     return app;
 }
 
