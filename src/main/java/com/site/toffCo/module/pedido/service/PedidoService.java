@@ -11,6 +11,7 @@ import com.site.toffCo.module.carrinho.entity.Carrinho;
 import com.site.toffCo.module.carrinho.repository.CarrinhoRepository;
 import com.site.toffCo.module.carrinho.service.CarrinhoService;
 import com.site.toffCo.module.itemcarrinho.entity.ItemCarrinho;
+import com.site.toffCo.module.pedido.dto.PedidoResumoDTO;
 import com.site.toffCo.module.pedido.entity.ItemPedido;
 import com.site.toffCo.module.pedido.entity.Pedido;
 import com.site.toffCo.module.pedido.entity.PedidoStatus;
@@ -28,16 +29,14 @@ public class PedidoService {
 
     private final PedidoRepository pedidoRepository;
     private final PedidoProducer pedidoProducer;
-    private final CarrinhoService carrinhoService;
     private final CarrinhoRepository carrinhoRepository;
     private final RabbitTemplate rabbitTemplate;
 
     public PedidoService(PedidoRepository pedidoRepository, PedidoProducer pedidoProducer,
-                         CarrinhoService carrinhoService, CarrinhoRepository carrinhoRepository,
+                         CarrinhoRepository carrinhoRepository,
                          RabbitTemplate rabbitTemplate) {
         this.pedidoRepository = pedidoRepository;
         this.pedidoProducer = pedidoProducer;
-        this.carrinhoService = carrinhoService;
         this.carrinhoRepository = carrinhoRepository;
         this.rabbitTemplate = rabbitTemplate;
     }
@@ -106,6 +105,13 @@ public class PedidoService {
                 pedido.getId(),
                 pedido.getTotal()
         );
+    }
+
+    public List<PedidoResumoDTO> getPedidosResumo(UUID userId) {
+        return pedidoRepository.findByUserIdOrderByDataCriacaoDesc(userId)
+                .stream()
+                .map(PedidoResumoDTO::from)
+                .toList();
     }
 
     /** Monta o snapshot do ItemCarrinho para ItemPedido. */

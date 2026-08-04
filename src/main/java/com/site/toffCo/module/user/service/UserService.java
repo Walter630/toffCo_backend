@@ -57,6 +57,7 @@ public class UserService {
         // ATENÇÃO: Troque 'Role.USER' pelo nome exato da sua classe Enum e do valor.
         // (ex: UserRole.CLIENTE, RoleEnum.DEFAULT_USER, et
         userCriado.setRole(Role.USER);
+        userCriado.setEmail(userRequestDTO.email().trim().toLowerCase());
         var userSave = repository.saveAndFlush(userCriado);
 
         log.info(
@@ -76,15 +77,24 @@ public class UserService {
 
     @Transactional
     public LoginResponseDTO login(LoginRequestDTO loginRequestDTO) {
-        var user = new UsernamePasswordAuthenticationToken(loginRequestDTO.email(), loginRequestDTO.password());
+        String email = loginRequestDTO.email().trim().toLowerCase();
+        var user = new UsernamePasswordAuthenticationToken(email, loginRequestDTO.password());
         this.authenticationManager.authenticate(user);
-        var userCreate = repository.findByEmail(loginRequestDTO.email())
+        var userCreate = repository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Erro critico"));
-        var accessToken = tokenService.generateToken(loginRequestDTO.email());
+        var accessToken = tokenService.generateToken(email);
 
         var refreshToken = refreshTokenService.createRefreshToken(userCreate);
         log.info("Token: {}, refreshToken: {}", accessToken, refreshToken);
-        return new LoginResponseDTO(accessToken, refreshToken.getToken());
+        return new LoginResponseDTO(
+                accessToken,
+                refreshToken.getToken(),
+                new LoginResponseDTO.UserRequestDTO(
+                        userCreate.getEmail(),
+                        userCreate.getUsername(),
+                        userCreate.getRole().name()
+                )
+        );
     }
 
 
@@ -97,7 +107,9 @@ public class UserService {
                 .map(RefreshToken::getUser)
                 .map(user -> {
                     String newAccessToken = tokenService.generateToken(user.getEmail());
-                    return new LoginResponseDTO(newAccessToken, refreshTokenDTO.refreshToken());
+                    return new LoginResponseDTO(newAccessToken, refreshTokenDTO.refreshToken(), new LoginResponseDTO.UserRequestDTO(
+                            user.getEmail(), user.getUsername(), user.getRole().name()
+                    ));
                 })
                 .orElseThrow(() -> new InvalidRefreshToken("Refresh token invalid"));
     }

@@ -94,7 +94,7 @@ public class SecurityConfig {
     @Bean
     public UserDetailsService userDetailsService() {
         return email -> {
-            var userEntity = userRepository.findByEmail(email) // Se o seu método no repository tiver outro nome (ex: findByUsername), troque aqui!
+            var userEntity = userRepository.findByEmail(email.trim().toLowerCase()) // Se o seu mdtodo no repository tiver outro nome (ex: findByUsername), troque aqui!
                     .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado: " + email));
 
             return User.builder()

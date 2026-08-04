@@ -33,6 +33,9 @@ public class Pedido {
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal total;
 
+    private LocalDateTime dataPayment;
+    private String formaPagamento;
+
     // ─── STATUS ───────────────────────────────────────────────────
     /*
      * Começa em AGUARDANDO_PAGAMENTO.

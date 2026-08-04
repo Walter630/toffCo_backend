@@ -17,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -88,6 +87,17 @@ public class PagamentoItemService {
     }
 
 
+    public ResponseDTO updatePagamentoItem(PagamentoRequestDTO requestDTO) {
+        if (requestDTO == null || requestDTO.formaPagamento() == null) {
+            log.error("Erro ao tentar atualizar pagamento.");
+        }
+        String forma = requestDTO.formaPagamento().toUpperCase().trim();
+        PagamentoStrategy strategy = pagamentoStrategyMap.get(forma);
+        if (strategy == null) {
+            log.error("Erro ao tentar atualizar pagamento item.");
+        }
+        return strategy.processar(requestDTO.valor(), requestDTO.pedidoId());
+    }
 
     /**
      * Converte a string de status que vem das strategies para o enum PagamentoStatus.
