@@ -104,6 +104,13 @@ public class WhatsAppController {
              * Nesse caso, tentamos usar o remoteJidAlt com o telefone real.
              */
             if (remoteJid.endsWith("@lid")) {
+                // Verifica blocklist pelo LID original antes de resolver o número real.
+                String lidNumber = remoteJid.replace("@lid", "").replaceAll("\\D", "");
+                if (!lidNumber.isBlank() && sessionStore.isBlocked(lidNumber)) {
+                    log.debug("LID bloqueado ignorado: {}", lidNumber);
+                    return ResponseEntity.ok().build();
+                }
+
                 // Em versões recentes da Evolution/Baileys, o telefone real
                 // pode chegar em senderPn quando remoteJidAlt não existe.
                 remoteJid = firstNonBlank(key.remoteJidAlt(), key.senderPn());
@@ -145,8 +152,16 @@ public class WhatsAppController {
             boolean dynamicallyBlocked =
                     sessionStore.isBlocked(number);
 
+            log.info(
+                    "Blocklist check: number={}, static={}, redis={}, listaEstatica={}",
+                    number,
+                    staticallyBlocked,
+                    dynamicallyBlocked,
+                    whatsappProperties.blockedNumbers().size()
+            );
+
             if (staticallyBlocked || dynamicallyBlocked) {
-                log.debug(
+                log.info(
                         "Número bloqueado ignorado: number={}, static={}, redis={}",
                         number,
                         staticallyBlocked,

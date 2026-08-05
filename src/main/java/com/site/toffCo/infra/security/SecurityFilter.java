@@ -173,6 +173,7 @@ public class SecurityFilter extends OncePerRequestFilter {
                 || path.startsWith("/api/webhooks/")
                 || path.startsWith("/instance/")
                 || path.startsWith("/webhook/whatsapp/")
+                || path.startsWith("/api/webhooks/whatsapp/blocklist")
                 || path.equals("/bot-test.html");
     }
 }
