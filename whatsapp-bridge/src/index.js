@@ -21,6 +21,7 @@ import pino from 'pino';
 import { startConnection, setOnMessageReceived } from './connection.js';
 import { handleIncomingMessage } from './message-handler.js';
 import { createApi } from './api.js';
+import { flushToDisk } from './lid-store.js';
 
 // ─── LOGGER ───────────────────────────────────────────────────
 
@@ -68,11 +69,13 @@ main().catch((error) => {
 
 process.on('SIGINT', () => {
     logger.info('Encerrando bridge (SIGINT)...');
+    flushToDisk();
     process.exit(0);
 });
 
 process.on('SIGTERM', () => {
     logger.info('Encerrando bridge (SIGTERM)...');
+    flushToDisk();
     process.exit(0);
 });
 

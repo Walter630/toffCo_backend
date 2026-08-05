@@ -14,6 +14,7 @@
 
 import express from 'express';
 import { getSocket, getStatus, resolveJidForSend } from './connection.js';
+import { getAllMappings, getStats, resolveToNumber, resolveToLid } from './lid-store.js';
 
 const BRIDGE_SECRET = process.env.BRIDGE_SECRET || '';
 
@@ -142,8 +143,21 @@ export function createApi(logger) {
                 return res.status(503).json({ error: 'WhatsApp desconectado' });
             }
             const mappings = {};
-            for (let i = 0; i < numbers.length; i += 5) {
-                const batch = numbers.slice(i, i + 5);
+
+            // Primeiro: verifica os que já temos no lid-store
+            for (const number of numbers) {
+                const clean = number.replace(/\D/g, '');
+                const lid = resolveToLid(clean);
+                if (lid) {
+                    mappings[clean] = lid;
+                }
+            }
+
+            // Depois: tenta resolver os restantes via Baileys
+            const unresolved = numbers.filter(n => !mappings[n.replace(/\D/g, '')]);
+
+            for (let i = 0; i < unresolved.length; i += 5) {
+                const batch = unresolved.slice(i, i + 5);
                 const jids = batch.map(n => n.replace(/\D/g, '') + '@s.whatsapp.net');
                 try {
                     const results = await sock.onWhatsApp(...jids);
@@ -159,7 +173,7 @@ export function createApi(logger) {
                 } catch (batchError) {
                     logger.warn({ error: batchError.message }, 'Erro ao resolver lote');
                 }
-                if (i + 5 < numbers.length) await sleep(300);
+                if (i + 5 < unresolved.length) await sleep(300);
             }
             logger.info({ resolved: Object.keys(mappings).length, total: numbers.length }, 'Números resolvidos');
             return res.json({ mappings });
@@ -167,6 +181,32 @@ export function createApi(logger) {
             logger.error({ error: error.message }, 'Falha ao resolver números');
             return res.status(500).json({ error: error.message });
         }
+    });
+
+    // ─── GET /lid-mappings ────────────────────────────────────
+    //
+    // Retorna todos os mapeamentos LID↔número conhecidos.
+    // O backend Java pode consultar pra enriquecer a blocklist.
+
+    app.get('/lid-mappings', (req, res) => {
+        return res.json({
+            mappings: getAllMappings(),
+            stats: getStats(),
+        });
+    });
+
+    // ─── POST /resolve-lid ────────────────────────────────────
+    //
+    // Dado um LID, retorna o número real (se conhecido).
+    // Body: { "lid": "116964861181994" }
+
+    app.post('/resolve-lid', (req, res) => {
+        const { lid } = req.body;
+        if (!lid) {
+            return res.status(400).json({ error: 'Campo "lid" obrigatório' });
+        }
+        const number = resolveToNumber(lid);
+        return res.json({ lid, number: number || null, resolved: !!number });
     });
 
     return app;

@@ -18,8 +18,15 @@ import {
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import qrcode from 'qrcode-terminal';
-import pino from 'pino';
 import { mkdir } from 'fs/promises';
+import {
+    resolveToNumber,
+    resolveToLid,
+    registerMapping,
+    loadMappings,
+    flushToDisk,
+    getStats,
+} from './lid-store.js';
 
 // ─── ESTADO GLOBAL ────────────────────────────────────────────
 
@@ -29,16 +36,17 @@ let ownNumber = null; // Número do WhatsApp conectado (ex: "553488560330")
 let qrRetries = 0;
 const MAX_QR_RETRIES = 15;
 
-// Mapa LID → número real (ex: "205192532328666" → "5534984114981")
-// Preenchido automaticamente quando o Baileys emite contatos.
-const lidToNumber = new Map();
-
-// Mapa reverso: número → LID (pra enviar mensagens de volta)
-const numberToLid = new Map();
+// Mapa LID como número → LID (para envio via @lid)
+// Registra LIDs que não conseguimos resolver para número real
+// mas sabemos que precisam de @lid para envio.
+const unresolvedLids = new Set();
 
 // Callback que será chamado quando uma mensagem chegar.
 // Definido por quem importa este módulo (message-handler.js).
 let onMessageReceived = null;
+
+// Logger reference (setado em startConnection)
+let _logger = null;
 
 // ─── FUNÇÕES PÚBLICAS ─────────────────────────────────────────
 
@@ -60,36 +68,47 @@ export function getOwnNumber() {
  */
 export function resolveLid(lid) {
     if (!lid) return null;
-    const clean = lid.replace('@lid', '').replace('@s.whatsapp.net', '').replace(/\D/g, '');
-    return lidToNumber.get(clean) || null;
+    return resolveToNumber(lid);
 }
 
 /**
  * Dado um "número" (que pode ser um LID usado como identificador),
  * retorna o JID correto pra enviar mensagem.
- * Se o número está no mapa reverso, retorna lid@lid.
+ * Se o número é um LID conhecido, retorna lid@lid.
  * Senão, retorna numero@s.whatsapp.net.
  */
 export function resolveJidForSend(number) {
     if (!number) return null;
     const clean = number.replace(/\D/g, '');
-    // Se esse "número" é na verdade um LID que salvamos antes
-    const lid = numberToLid.get(clean);
+
+    // Se esse "número" tem um LID associado, envia via @lid
+    const lid = resolveToLid(clean);
     if (lid) return lid + '@lid';
+
+    // Se é um LID não resolvido que registramos antes
+    if (unresolvedLids.has(clean)) return clean + '@lid';
+
     return clean + '@s.whatsapp.net';
 }
 
 /**
- * Registra que um determinado "número" (LID como identificador)
- * deve ser endereçado via @lid no envio.
+ * Registra que um determinado LID não pôde ser resolvido
+ * mas deve ser endereçado via @lid no envio.
  */
 export function registerLidMapping(lidDigits) {
     if (!lidDigits) return;
     const clean = lidDigits.replace(/\D/g, '');
-    // Mapeia o LID pra ele mesmo (número → LID)
-    // Porque o backend vai receber o LID como "número" e precisa
-    // enviar de volta pro mesmo LID
-    numberToLid.set(clean, clean);
+    unresolvedLids.add(clean);
+    if (_logger) {
+        _logger.debug({ lid: clean, unresolvedCount: unresolvedLids.size }, 'LID adicionado à lista de não-resolvidos');
+    }
+}
+
+/**
+ * Registra um mapeamento LID → número real persistente.
+ */
+export function registerLidToNumber(lid, number) {
+    registerMapping(lid, number, _logger);
 }
 
 export function setOnMessageReceived(callback) {
@@ -99,7 +118,11 @@ export function setOnMessageReceived(callback) {
 // ─── CONEXÃO PRINCIPAL ────────────────────────────────────────
 
 export async function startConnection(logger) {
+    _logger = logger;
     const authFolder = process.env.AUTH_FOLDER || './auth_data';
+
+    // Carrega mapeamentos LID persistidos do disco
+    loadMappings(logger);
 
     // Garante que a pasta de auth existe
     await mkdir(authFolder, { recursive: true });
@@ -200,26 +223,27 @@ export async function startConnection(logger) {
     // ─── MAPEAMENTO LID → NÚMERO ─────────────────────────────
     // O Baileys emite contatos com lid e número real.
     // Usamos isso pra resolver JIDs @lid → @s.whatsapp.net.
+    // Agora persiste em disco via lid-store.js.
 
     sock.ev.on('contacts.upsert', (contacts) => {
         for (const contact of contacts) {
-            mapContact(contact);
+            mapContact(contact, logger);
         }
-        logger.info({ lidMapSize: lidToNumber.size }, 'Contatos atualizados no mapa LID');
+        logger.info({ totalMappings: getMappingCount() }, 'Contatos atualizados no LID store');
     });
 
     sock.ev.on('contacts.update', (contacts) => {
         for (const contact of contacts) {
-            mapContact(contact);
+            mapContact(contact, logger);
         }
     });
 
     sock.ev.on('messaging-history.set', ({ contacts }) => {
         if (contacts) {
             for (const contact of contacts) {
-                mapContact(contact);
+                mapContact(contact, logger);
             }
-            logger.info({ lidMapSize: lidToNumber.size }, 'Histórico de contatos carregado no mapa LID');
+            logger.info({ totalMappings: getMappingCount() }, 'Histórico de contatos carregado no LID store');
         }
     });
 
@@ -227,11 +251,18 @@ export async function startConnection(logger) {
 }
 
 /**
+ * Retorna total de mapeamentos conhecidos.
+ */
+function getMappingCount() {
+    return getStats().totalMappings;
+}
+
+/**
  * Extrai o mapeamento LID → número de um contato do Baileys.
  * O Baileys pode mandar: { id: "xxx@lid", lid: "xxx@lid", name: "...", notify: "..." }
  * E em alguns casos: { id: "55xxx@s.whatsapp.net", lid: "xxx@lid" }
  */
-function mapContact(contact) {
+function mapContact(contact, logger) {
     if (!contact) return;
 
     const id = contact.id || '';
@@ -242,8 +273,9 @@ function mapContact(contact) {
         const number = id.replace('@s.whatsapp.net', '').replace(/\D/g, '');
         const lidClean = lid.replace('@lid', '').replace(/\D/g, '');
         if (number && lidClean) {
-            lidToNumber.set(lidClean, number);
-            numberToLid.set(number, lidClean);
+            registerMapping(lidClean, number, logger);
+            // Se esse LID estava em unresolvedLids, remove
+            unresolvedLids.delete(lidClean);
         }
     }
 

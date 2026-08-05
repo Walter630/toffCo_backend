@@ -18,7 +18,8 @@
 const BACKEND_URL = process.env.BACKEND_WEBHOOK_URL || 'http://localhost:8081/api/webhook/whatsapp/receive';
 const BRIDGE_SECRET = process.env.BRIDGE_SECRET || '';
 
-import { getOwnNumber, resolveLid, registerLidMapping } from './connection.js';
+import { getOwnNumber, getSocket, getStatus, resolveLid, registerLidMapping, registerLidToNumber } from './connection.js';
+import { resolveToNumber } from './lid-store.js';
 
 /**
  * Processa uma mensagem crua do Baileys e envia pro backend.
@@ -43,26 +44,41 @@ export async function handleIncomingMessage(msg, logger) {
         // - fromMe=false → cliente mandou mensagem pro gerente
         // - fromMe=true  → gerente mandou mensagem pro cliente
         //
-        // Em ambos os casos, precisamos resolver o LID do CLIENTE.
+        // ESTRATÉGIA:
+        // 1. Se é @lid, tenta resolver para número real via lid-store
+        // 2. Se resolve, envia remoteJid = numero@s.whatsapp.net e senderPn = número real
+        // 3. Se NÃO resolve, envia remoteJid = lid@s.whatsapp.net (fallback)
+        //    mas TAMBÉM envia originalLid para o backend poder checar blocklist
+        // 4. Tenta resolução em tempo real via Baileys (assíncrono) para futuras mensagens
         let senderPn = null;
+        let originalLid = null;
 
         if (remoteJid && remoteJid.endsWith('@lid')) {
-            // 1. Tenta resolver pelo mapa de contatos
+            originalLid = remoteJid.replace('@lid', '').replace(/\D/g, '');
+
+            // 1. Tenta resolver pelo lid-store persistente
             const resolvedNumber = resolveLid(remoteJid);
 
             if (resolvedNumber) {
                 senderPn = resolvedNumber;
                 remoteJid = resolvedNumber + '@s.whatsapp.net';
+                logger.debug({ lid: originalLid, resolvedTo: resolvedNumber }, 'LID resolvido pelo store');
             } else {
-                // 2. Tenta participant como fallback
+                // 2. Tenta participant como fallback (mensagens de grupo reencaminhadas)
                 const participant = msg.key.participant;
                 if (participant && participant.endsWith('@s.whatsapp.net')) {
+                    const participantNumber = participant.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+                    senderPn = participantNumber;
                     remoteJid = participant;
+                    // Registra o mapeamento para futuro
+                    registerLidToNumber(originalLid, participantNumber);
+                    logger.debug({ lid: originalLid, resolvedTo: participantNumber }, 'LID resolvido via participant');
                 } else if (participant) {
                     const digits = participant.replace(/\D/g, '');
-                    if (digits.length >= 10) {
+                    if (digits.length >= 10 && digits.length <= 15) {
                         senderPn = digits;
                         remoteJid = digits + '@s.whatsapp.net';
+                        registerLidToNumber(originalLid, digits);
                     }
                 }
             }
@@ -70,10 +86,13 @@ export async function handleIncomingMessage(msg, logger) {
             // 3. Último recurso: usa o LID como identificador
             if (remoteJid.endsWith('@lid')) {
                 const lidAsNumber = remoteJid.replace('@lid', '');
-                senderPn = lidAsNumber;
+                // senderPn fica null — backend saberá que não temos o número real
                 remoteJid = lidAsNumber + '@s.whatsapp.net';
                 registerLidMapping(lidAsNumber);
-                logger.debug({ lid: lidAsNumber, messageId, fromMe }, 'LID usado como identificador direto');
+                logger.info({ lid: lidAsNumber, messageId, fromMe }, 'LID não resolvido — usado como identificador');
+
+                // 4. Tenta resolver em background para futuras mensagens
+                tryResolveInBackground(lidAsNumber, logger);
             }
         }
 
@@ -89,7 +108,9 @@ export async function handleIncomingMessage(msg, logger) {
             messageId,
             hasText: !!text,
             mediaType: mediaInfo?.type || 'none',
-        }, 'Mensagem recebida do WhatsApp');
+            originalLid: originalLid || undefined,
+            senderPn: senderPn || undefined,
+        }, 'Mensagem processada');
 
         // Monta o payload no formato que o backend Java espera
         const payload = {
@@ -101,6 +122,8 @@ export async function handleIncomingMessage(msg, logger) {
                     id: messageId,
                     remoteJidAlt: null,
                     senderPn: senderPn,
+                    // Campo extra: o LID original para o backend checar blocklist
+                    originalLid: originalLid,
                 },
                 message: {
                     conversation: text,
@@ -130,6 +153,39 @@ export async function handleIncomingMessage(msg, logger) {
         }
     } catch (error) {
         logger.error({ error: error.message, messageId: msg?.key?.id }, 'Falha ao repassar mensagem pro backend');
+    }
+}
+
+// ─── RESOLUÇÃO EM BACKGROUND ──────────────────────────────────
+
+/**
+ * Tenta resolver um LID para número real usando sock.onWhatsApp().
+ * Se conseguir, registra no lid-store para futuras mensagens.
+ * Não bloqueia o fluxo principal.
+ */
+async function tryResolveInBackground(lidDigits, logger) {
+    try {
+        const sock = getSocket();
+        if (!sock || getStatus() !== 'open') return;
+
+        // onWhatsApp espera JIDs com @s.whatsapp.net, mas com LID não funciona bem.
+        // Alternativa: buscar no store de contatos do socket
+        const contactJid = lidDigits + '@lid';
+
+        // Tenta buscar info do contato (pode retornar o número em algumas versões)
+        if (sock.store?.contacts) {
+            const contact = sock.store.contacts[contactJid];
+            if (contact && contact.id && contact.id.endsWith('@s.whatsapp.net')) {
+                const number = contact.id.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+                if (number) {
+                    registerLidToNumber(lidDigits, number);
+                    logger.info({ lid: lidDigits, number }, 'LID resolvido via store.contacts em background');
+                }
+            }
+        }
+    } catch (error) {
+        // Silencioso — é tentativa best-effort
+        logger.debug({ lid: lidDigits, error: error.message }, 'Falha na resolução background de LID');
     }
 }
 

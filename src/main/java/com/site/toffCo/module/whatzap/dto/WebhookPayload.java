@@ -18,6 +18,7 @@ public record WebhookPayload(WebhookData data) {
             String remoteJid,
             String remoteJidAlt,
             String senderPn,
+            String originalLid,
             Boolean fromMe,
             String id
     ) {}

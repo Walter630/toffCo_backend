@@ -145,16 +145,40 @@ public class WhatsAppController {
                 return ResponseEntity.ok().build();
             }
 
+            /*
+             * Se o "número" extraído é na verdade um LID usado como
+             * identificador (>13 dígitos ou não parece brasileiro), 
+             * verificamos a blocklist usando o senderPn (número real)
+             * enviado pelo bridge, ALÉM do LID e do originalLid.
+             */
+            String realNumber = null;
+            if (key.senderPn() != null && !key.senderPn().isBlank()) {
+                realNumber = key.senderPn().replaceAll("\\D", "");
+                if (realNumber.isBlank()) realNumber = null;
+            }
+
+            String originalLid = null;
+            if (key.originalLid() != null && !key.originalLid().isBlank()) {
+                originalLid = key.originalLid().replaceAll("\\D", "");
+                if (originalLid.isBlank()) originalLid = null;
+            }
+
             // Bloqueado estaticamente (application.yaml) ou dinamicamente (Redis)?
+            // Verifica: número extraído do JID, número real (senderPn), e LID original
             boolean staticallyBlocked =
-                    whatsappProperties.isStaticallyBlocked(number);
+                    whatsappProperties.isStaticallyBlocked(number)
+                    || (realNumber != null && whatsappProperties.isStaticallyBlocked(realNumber));
 
             boolean dynamicallyBlocked =
-                    sessionStore.isBlocked(number);
+                    sessionStore.isBlocked(number)
+                    || (realNumber != null && sessionStore.isBlocked(realNumber))
+                    || (originalLid != null && sessionStore.isBlocked(originalLid));
 
             log.info(
-                    "Blocklist check: number={}, static={}, redis={}, listaEstatica={}",
+                    "Blocklist check: number={}, realNumber={}, originalLid={}, static={}, redis={}, listaEstatica={}",
                     number,
+                    realNumber,
+                    originalLid,
                     staticallyBlocked,
                     dynamicallyBlocked,
                     whatsappProperties.blockedNumbers().size()
@@ -162,10 +186,11 @@ public class WhatsAppController {
 
             if (staticallyBlocked || dynamicallyBlocked) {
                 log.info(
-                        "Número bloqueado ignorado: number={}, static={}, redis={}",
+                        "BLOQUEADO: number={}, realNumber={}, originalLid={}, motivo={}",
                         number,
-                        staticallyBlocked,
-                        dynamicallyBlocked
+                        realNumber,
+                        originalLid,
+                        staticallyBlocked ? "lista_estatica" : "redis"
                 );
 
                 return ResponseEntity.ok().build();
