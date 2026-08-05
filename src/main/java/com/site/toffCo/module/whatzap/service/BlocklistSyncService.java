@@ -15,10 +15,12 @@ import org.springframework.web.client.RestClient;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
@@ -36,6 +38,34 @@ public class BlocklistSyncService {
 
     // Guarda os LIDs que já foram bloqueados para evitar logs repetitivos
     private final Set<String> knownBlockedLids = new HashSet<>();
+
+    // LIDs que foram vistos em mensagens mas NÃO bloqueados.
+    // São candidatos a bloqueio automático.
+    // Thread-safe porque pode ser acessado por múltiplas threads do tomcat.
+    private final Set<String> seenLids = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Registra um LID que foi visto numa mensagem recebida.
+     * Chamado pelo WhatsAppController quando o "number" parece ser LID.
+     */
+    public void registerSeenLid(String lid) {
+        if (lid != null && !lid.isBlank() && lid.length() > 13) {
+            seenLids.add(lid);
+        }
+    }
+
+    /**
+     * Retorna LIDs vistos que ainda não foram bloqueados.
+     */
+    public Set<String> getUnblockedSeenLids() {
+        Set<String> unblocked = new HashSet<>();
+        for (String lid : seenLids) {
+            if (!sessionStore.isBlocked(lid)) {
+                unblocked.add(lid);
+            }
+        }
+        return Collections.unmodifiableSet(unblocked);
+    }
 
     // ─── SYNC INICIAL (STARTUP) ───────────────────────────────────
 

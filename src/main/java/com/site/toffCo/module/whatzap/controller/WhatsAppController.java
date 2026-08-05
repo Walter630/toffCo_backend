@@ -5,6 +5,7 @@ import tools.jackson.databind.ObjectMapper;
 import com.site.toffCo.infra.config.WhatsappProperties;
 import com.site.toffCo.module.whatzap.dto.WebhookPayload;
 import com.site.toffCo.module.whatzap.service.AttendanceQueueService;
+import com.site.toffCo.module.whatzap.service.BlocklistSyncService;
 import com.site.toffCo.module.whatzap.service.BotMessages;
 import com.site.toffCo.module.whatzap.service.ChatBotService;
 import com.site.toffCo.module.whatzap.session.WhatsappSessionStore;
@@ -33,6 +34,7 @@ public class WhatsAppController {
     private final ObjectMapper objectMapper;
     private final WhatsappCircuitBreaker circuitBreaker;
     private final WhatsappMonitoringService monitoring;
+    private final BlocklistSyncService blocklistSyncService;
 
     // Número do atendente vem do properties type-safe
     private String attendantNumber() {
@@ -207,6 +209,11 @@ public class WhatsAppController {
                 return ResponseEntity.ok().build();
             }
 
+            // Registra LIDs vistos (números > 13 dígitos) para consulta posterior
+            if (number.length() > 13) {
+                blocklistSyncService.registerSeenLid(number);
+            }
+
             /*
              * Mensagem de mídia (áudio, imagem, vídeo, documento, sticker).
              * O bot não consegue processar — avisa o cliente se não for fromMe,
@@ -335,6 +342,37 @@ public class WhatsAppController {
             return first;
         }
         return second;
+    }
+
+    // ─── ENDPOINTS DE LIDS VISTOS ────────────────────────────────
+
+    /**
+     * Lista LIDs que mandaram mensagem mas NÃO estão bloqueados.
+     * Útil para decidir quais bloquear.
+     */
+    @GetMapping("/seen-lids")
+    public ResponseEntity<?> getSeenLids() {
+        return ResponseEntity.ok(Map.of(
+                "lids", blocklistSyncService.getUnblockedSeenLids(),
+                "count", blocklistSyncService.getUnblockedSeenLids().size()
+        ));
+    }
+
+    /**
+     * Bloqueia TODOS os LIDs vistos que não estão na blocklist.
+     * Cuidado: pode bloquear clientes legítimos que mandaram msg via LID.
+     * Use apenas se tiver certeza de que todos os LIDs vistos são indesejados.
+     */
+    @PostMapping("/blocklist/block-all-lids")
+    public ResponseEntity<?> blockAllSeenLids() {
+        var lids = blocklistSyncService.getUnblockedSeenLids();
+        int count = 0;
+        for (String lid : lids) {
+            sessionStore.blockNumber(lid);
+            count++;
+            log.info("Bloqueio manual em lote: LID {}", lid);
+        }
+        return ResponseEntity.ok(Map.of("blocked", count));
     }
 
     @GetMapping("/health")
