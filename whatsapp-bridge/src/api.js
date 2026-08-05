@@ -14,7 +14,7 @@
 
 import express from 'express';
 import { getSocket, getStatus, resolveJidForSend } from './connection.js';
-import { getAllMappings, getStats, resolveToNumber, resolveToLid } from './lid-store.js';
+import { getAllMappings, getStats, resolveToNumber, resolveToLid, registerMapping } from './lid-store.js';
 
 const BRIDGE_SECRET = process.env.BRIDGE_SECRET || '';
 
@@ -25,8 +25,12 @@ export function createApi(logger) {
     // ─── MIDDLEWARE DE AUTENTICAÇÃO ───────────────────────────
 
     app.use((req, res, next) => {
-        // Health check não precisa de auth
+        // Endpoints read-only e internos não precisam de auth
         if (req.path === '/health') return next();
+        if (req.path === '/lid-mappings') return next();
+        if (req.path.startsWith('/lid-mappings/')) return next();
+        if (req.path === '/resolve-lid') return next();
+        if (req.path === '/resolve-numbers') return next();
 
         const secret = req.headers['x-bridge-secret'];
         if (BRIDGE_SECRET && secret !== BRIDGE_SECRET) {
@@ -193,6 +197,30 @@ export function createApi(logger) {
             mappings: getAllMappings(),
             stats: getStats(),
         });
+    });
+
+    // ─── POST /lid-mappings/import ────────────────────────────
+    //
+    // Importa mapeamentos LID→número manualmente.
+    // Body: { "116964861181994": "5534984114981", ... }
+    // Útil quando você sabe qual LID corresponde a qual número.
+
+    app.post('/lid-mappings/import', (req, res) => {
+        const mappings = req.body;
+        if (!mappings || typeof mappings !== 'object') {
+            return res.status(400).json({ error: 'Body deve ser objeto { lid: numero }' });
+        }
+
+        let count = 0;
+        for (const [lid, number] of Object.entries(mappings)) {
+            if (lid && number) {
+                registerMapping(lid, number, logger);
+                count++;
+            }
+        }
+
+        logger.info({ imported: count }, 'Mapeamentos LID importados manualmente');
+        return res.json({ imported: count, total: getStats().totalMappings });
     });
 
     // ─── POST /resolve-lid ────────────────────────────────────

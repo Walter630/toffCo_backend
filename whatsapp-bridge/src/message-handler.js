@@ -16,10 +16,51 @@
  */
 
 const BACKEND_URL = process.env.BACKEND_WEBHOOK_URL || 'http://localhost:8081/api/webhook/whatsapp/receive';
+const BACKEND_BASE_URL = process.env.BACKEND_BASE_URL || process.env.BACKEND_WEBHOOK_URL?.replace('/api/webhook/whatsapp/receive', '') || 'http://localhost:8081';
 const BRIDGE_SECRET = process.env.BRIDGE_SECRET || '';
 
 import { getOwnNumber, getSocket, getStatus, resolveLid, registerLidMapping, registerLidToNumber } from './connection.js';
 import { resolveToNumber } from './lid-store.js';
+
+// ─── BLOCKLIST LOCAL (baixada do backend) ─────────────────────
+let localBlocklist = new Set();
+let blocklistLoaded = false;
+
+/**
+ * Baixa a blocklist do backend e mantém em memória.
+ * Chamada no startup e periodicamente.
+ */
+export async function refreshBlocklist(logger) {
+    try {
+        const response = await fetch(`${BACKEND_BASE_URL}/api/webhook/whatsapp/blocklist`, {
+            signal: AbortSignal.timeout(5000),
+        });
+        if (response.ok) {
+            const data = await response.json();
+            if (Array.isArray(data)) {
+                localBlocklist = new Set(data.map(n => n.replace(/\D/g, '')));
+            } else if (data && typeof data === 'object') {
+                // Pode vir como Set serializado
+                localBlocklist = new Set(Object.values(data).map(n => String(n).replace(/\D/g, '')));
+            }
+            blocklistLoaded = true;
+            if (logger) logger.info({ size: localBlocklist.size }, 'Blocklist baixada do backend');
+        } else {
+            if (logger) logger.warn({ status: response.status }, 'Falha ao baixar blocklist do backend');
+        }
+    } catch (error) {
+        if (logger) logger.warn({ error: error.message }, 'Erro ao baixar blocklist do backend');
+    }
+}
+
+/**
+ * Verifica se um número/LID está na blocklist local.
+ */
+function isLocallyBlocked(identifier) {
+    if (!blocklistLoaded || !identifier) return false;
+    const clean = identifier.replace(/\D/g, '');
+    return localBlocklist.has(clean);
+}
 
 /**
  * Processa uma mensagem crua do Baileys e envia pro backend.
@@ -101,6 +142,22 @@ export async function handleIncomingMessage(msg, logger) {
 
         // Detecta tipo de mídia
         const mediaInfo = detectMedia(msg.message);
+
+        // ─── BLOCKLIST LOCAL ──────────────────────────────────────
+        // Verifica se o número (real ou LID) está bloqueado ANTES
+        // de enviar pro backend. Isso é a proteção principal quando
+        // o bridge não consegue resolver LID → número real.
+        if (!fromMe) {
+            const numberFromJid = remoteJid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+            const blocked = isLocallyBlocked(numberFromJid)
+                || (senderPn && isLocallyBlocked(senderPn))
+                || (originalLid && isLocallyBlocked(originalLid));
+
+            if (blocked) {
+                logger.info({ number: numberFromJid, senderPn, originalLid }, 'BLOQUEADO pelo bridge (blocklist local)');
+                return; // Não repassa pro backend
+            }
+        }
 
         logger.info({
             from: remoteJid,

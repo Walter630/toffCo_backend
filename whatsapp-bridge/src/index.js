@@ -19,7 +19,7 @@ loadEnvFile();
 
 import pino from 'pino';
 import { startConnection, setOnMessageReceived } from './connection.js';
-import { handleIncomingMessage } from './message-handler.js';
+import { handleIncomingMessage, refreshBlocklist } from './message-handler.js';
 import { createApi } from './api.js';
 import { flushToDisk } from './lid-store.js';
 
@@ -58,6 +58,16 @@ async function main() {
         logger.info({ port }, 'API do bridge rodando');
         logger.info('Pronto pra receber comandos do backend Java');
     });
+
+    // 4. Baixa a blocklist do backend (espera ele subir)
+    setTimeout(async () => {
+        await refreshBlocklist(logger);
+    }, 20_000); // 20s pro backend terminar de subir
+
+    // 5. Atualiza a blocklist a cada 3 minutos
+    setInterval(async () => {
+        await refreshBlocklist(logger);
+    }, 180_000);
 }
 
 main().catch((error) => {

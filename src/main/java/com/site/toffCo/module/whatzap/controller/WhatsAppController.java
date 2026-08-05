@@ -193,6 +193,17 @@ public class WhatsAppController {
                         staticallyBlocked ? "lista_estatica" : "redis"
                 );
 
+                // Auto-bloqueio: se o LID ainda não está no Redis, adiciona
+                // para que futuras mensagens sejam bloqueadas instantaneamente
+                if (originalLid != null && !sessionStore.isBlocked(originalLid)) {
+                    sessionStore.blockNumber(originalLid);
+                    log.info("Auto-bloqueio: LID {} adicionado ao Redis", originalLid);
+                }
+                if (!number.equals(originalLid) && !sessionStore.isBlocked(number)) {
+                    sessionStore.blockNumber(number);
+                    log.info("Auto-bloqueio: number {} adicionado ao Redis", number);
+                }
+
                 return ResponseEntity.ok().build();
             }
 
