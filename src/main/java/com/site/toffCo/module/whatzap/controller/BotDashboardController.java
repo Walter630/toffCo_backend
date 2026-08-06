@@ -1,20 +1,26 @@
 package com.site.toffCo.module.whatzap.controller;
 
+import com.site.toffCo.infra.config.WhatsappProperties;
 import com.site.toffCo.module.whatzap.dto.ChatStatus;
 import com.site.toffCo.module.whatzap.monitoring.MessageLogService;
 import com.site.toffCo.module.whatzap.monitoring.WhatsappCircuitBreaker;
 import com.site.toffCo.module.whatzap.monitoring.WhatsappMonitoringService;
+import com.site.toffCo.module.whatzap.service.BlocklistSyncService;
 import com.site.toffCo.module.whatzap.session.WhatsappSession;
 import com.site.toffCo.module.whatzap.session.WhatsappSessionStore;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/bot")
 @RequiredArgsConstructor
@@ -24,6 +30,8 @@ public class BotDashboardController {
     private final WhatsappSessionStore sessionStore;
     private final WhatsappCircuitBreaker circuitBreaker;
     private final WhatsappMonitoringService monitoringService;
+    private final BlocklistSyncService blocklistSyncService;
+    private final WhatsappProperties whatsappProperties;
 
     @GetMapping(value = "/dashboard", produces = MediaType.TEXT_HTML_VALUE)
     public String dashboard() {
@@ -32,6 +40,10 @@ public class BotDashboardController {
         Set<String> blocklist = sessionStore.getBlocklist();
         WhatsappCircuitBreaker.Snapshot circuit = circuitBreaker.snapshot();
         WhatsappMonitoringService.Snapshot metrics = monitoringService.snapshot();
+
+        // LIDs pendentes de bloqueio
+        Set<String> unblockedLids = blocklistSyncService.getUnblockedSeenLids();
+        List<String> configuredNumbers = whatsappProperties.blockedNumbers();
 
         // Sessões ativas
         long activeSessions = allSessions.size();
@@ -84,6 +96,26 @@ public class BotDashboardController {
                             .append("</tr>\n");
                 });
 
+        // Seção de LIDs pendentes
+        StringBuilder lidRows = new StringBuilder();
+        for (String lid : unblockedLids) {
+            lidRows.append("<tr>")
+                    .append("<td class='num'>").append(lid).append("</td>")
+                    .append("<td><button class='btn-block' onclick=\"bloquearLid('").append(lid).append("')\">Bloquear</button></td>")
+                    .append("</tr>\n");
+        }
+
+        // Números configurados (da .env) - mostra quais já estão no Redis e quais não
+        StringBuilder configRows = new StringBuilder();
+        for (String number : configuredNumbers) {
+            boolean inRedis = sessionStore.isBlocked(number);
+            String status = inRedis ? "<span class='ok-text'>Bloqueado</span>" : "<span class='warn-text'>Pendente</span>";
+            configRows.append("<tr>")
+                    .append("<td class='num'>").append(number).append("</td>")
+                    .append("<td>").append(status).append("</td>")
+                    .append("</tr>\n");
+        }
+
         return """
                 <!DOCTYPE html>
                 <html lang="pt-BR">
@@ -110,6 +142,10 @@ public class BotDashboardController {
                         .btn-refresh { background: #00d4aa; color: #0f0f23; font-weight: 600; }
                         .btn-clear { background: #ff4757; color: #fff; }
                         .btn-pause { background: #ffa502; color: #0f0f23; font-weight: 600; }
+                        .btn-block { background: #ff4757; color: #fff; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.72rem; }
+                        .btn-block:hover { background: #ee3344; }
+                        .btn-block-all { background: #ff6348; color: #fff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; }
+                        .btn-block-all:hover { background: #ff4757; }
 
                         table { width: 100%%; border-collapse: collapse; font-size: 0.78rem; margin-bottom: 20px; }
                         th { background: #1a1a3e; padding: 8px 6px; text-align: left; position: sticky; top: 0; z-index: 1; }
@@ -126,6 +162,15 @@ public class BotDashboardController {
                         .section { background: #12122a; border-radius: 8px; padding: 14px; margin-bottom: 16px; }
                         .blocklist { font-family: monospace; font-size: 0.75rem; color: #888; max-height: 80px; overflow-y: auto; }
                         .empty { text-align: center; padding: 20px; color: #444; font-size: 0.85rem; }
+                        .ok-text { color: #00d4aa; }
+                        .warn-text { color: #ffa502; }
+                        .lid-alert { color: #ff4757; font-weight: 600; }
+
+                        .tab-nav { display: flex; gap: 4px; margin-bottom: 12px; }
+                        .tab-nav button { padding: 8px 16px; border: 1px solid #333; border-radius: 6px 6px 0 0; background: #1a1a3e; color: #888; cursor: pointer; font-size: 0.78rem; border-bottom: none; }
+                        .tab-nav button.active { background: #12122a; color: #eee; border-color: #74b9ff; }
+                        .tab-content { display: none; }
+                        .tab-content.active { display: block; }
 
                         @media (max-width: 700px) {
                             .cards { grid-template-columns: repeat(2, 1fr); }
@@ -147,27 +192,64 @@ public class BotDashboardController {
                         <div class="card"><div class="value">%d ms</div><div class="label">Latencia Media</div></div>
                         <div class="card %s"><div class="value">%s</div><div class="label">Circuit Breaker</div></div>
                         <div class="card"><div class="value">%d</div><div class="label">Bloqueados</div></div>
+                        <div class="card %s"><div class="value">%d</div><div class="label">LIDs Pendentes</div></div>
                     </div>
 
                     %s
 
-                    <h2>Mensagens Recentes</h2>
-                    <div class="actions">
-                        <button class="btn-refresh" onclick="location.reload()">Atualizar</button>
-                        <button class="btn-pause" id="pauseBtn" onclick="togglePause()">Pausar</button>
-                        <button class="btn-clear" onclick="limpar()">Limpar Log</button>
-                    </div>
-                    <div class="section">
-                        <table>
-                            <thead><tr><th>Hora</th><th>Tipo</th><th>Numero</th><th>Mensagem</th></tr></thead>
-                            <tbody>%s</tbody>
-                        </table>
-                        %s
+                    <div class="tab-nav">
+                        <button class="active" onclick="showTab('messages')">Mensagens</button>
+                        <button onclick="showTab('lids')">LIDs Pendentes %s</button>
+                        <button onclick="showTab('blocklist')">Bloqueados</button>
                     </div>
 
-                    <h2>Numeros Bloqueados (%d)</h2>
-                    <div class="section">
-                        <div class="blocklist">%s</div>
+                    <div id="tab-messages" class="tab-content active">
+                        <h2>Mensagens Recentes</h2>
+                        <div class="actions">
+                            <button class="btn-refresh" onclick="location.reload()">Atualizar</button>
+                            <button class="btn-pause" id="pauseBtn" onclick="togglePause()">Pausar</button>
+                            <button class="btn-clear" onclick="limpar()">Limpar Log</button>
+                        </div>
+                        <div class="section">
+                            <table>
+                                <thead><tr><th>Hora</th><th>Tipo</th><th>Numero</th><th>Mensagem</th></tr></thead>
+                                <tbody>%s</tbody>
+                            </table>
+                            %s
+                        </div>
+                    </div>
+
+                    <div id="tab-lids" class="tab-content">
+                        <h2>LIDs Pendentes de Bloqueio (%d)</h2>
+                        <p style="color:#888;font-size:0.78rem;margin-bottom:12px;">
+                            LIDs sao identificadores alternativos que o WhatsApp usa internamente. Numeros com mais de 13 digitos
+                            sao LIDs e podem burlar o bloqueio por numero real. Aqui voce ve quais LIDs foram detectados mas ainda
+                            nao estao bloqueados.
+                        </p>
+                        %s
+                        <div class="section">
+                            %s
+                        </div>
+
+                        <h2>Numeros Configurados (.env) - Status</h2>
+                        <p style="color:#888;font-size:0.78rem;margin-bottom:12px;">
+                            Comparacao dos numeros reais configurados no .env com o Redis. Se aparecer "Pendente", o numero pode
+                            nao estar efetivamente bloqueado.
+                        </p>
+                        <div class="section">
+                            <table>
+                                <thead><tr><th>Numero Real</th><th>Status no Redis</th></tr></thead>
+                                <tbody>%s</tbody>
+                            </table>
+                            %s
+                        </div>
+                    </div>
+
+                    <div id="tab-blocklist" class="tab-content">
+                        <h2>Numeros Bloqueados (%d)</h2>
+                        <div class="section">
+                            <div class="blocklist">%s</div>
+                        </div>
                     </div>
 
                     <script>
@@ -181,6 +263,39 @@ public class BotDashboardController {
                             if (confirm('Limpar todo o log?')) {
                                 fetch('/api/bot/dashboard/clear', { method: 'POST' }).then(() => location.reload());
                             }
+                        }
+
+                        function showTab(name) {
+                            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+                            document.querySelectorAll('.tab-nav button').forEach(el => el.classList.remove('active'));
+                            document.getElementById('tab-' + name).classList.add('active');
+                            event.target.classList.add('active');
+                        }
+
+                        function bloquearLid(lid) {
+                            if (!confirm('Bloquear LID ' + lid + '?')) return;
+                            fetch('/api/bot/dashboard/block-lid/' + lid, { method: 'POST' })
+                                .then(r => r.json())
+                                .then(data => {
+                                    if (data.blocked) {
+                                        alert('LID bloqueado com sucesso!');
+                                        location.reload();
+                                    } else {
+                                        alert('Erro ao bloquear: ' + (data.error || 'desconhecido'));
+                                    }
+                                })
+                                .catch(() => alert('Erro de conexao'));
+                        }
+
+                        function bloquearTodosLids() {
+                            if (!confirm('Bloquear TODOS os LIDs pendentes? Isso pode bloquear clientes legitimos que usam LID.')) return;
+                            fetch('/api/bot/dashboard/block-all-lids', { method: 'POST' })
+                                .then(r => r.json())
+                                .then(data => {
+                                    alert(data.blocked + ' LIDs bloqueados!');
+                                    location.reload();
+                                })
+                                .catch(() => alert('Erro de conexao'));
                         }
                     </script>
                 </body>
@@ -196,21 +311,109 @@ public class BotDashboardController {
                 metrics.averageLatencyMs(),
                 circuit.state() == WhatsappCircuitBreaker.State.OPEN ? "danger" : "", circuit.state().name(),
                 blocklist.size(),
+                unblockedLids.isEmpty() ? "" : "danger", unblockedLids.size(),
                 // Sessões em atendimento humano
                 humanAttendance > 0 ? "<h2>Em Atendimento Humano</h2><div class='section'><table><thead><tr><th>Numero</th><th>Assunto</th><th>Status</th><th>Tempo</th><th>Ultima Msg</th></tr></thead><tbody>" + humanRows + "</tbody></table></div>" : "",
+                // Tab badge para LIDs
+                unblockedLids.isEmpty() ? "" : "<span class='lid-alert'>(" + unblockedLids.size() + ")</span>",
                 // Mensagens
                 rows.toString(),
                 messages.isEmpty() ? "<p class='empty'>Nenhuma mensagem registrada ainda.</p>" : "",
+                // Tab LIDs
+                unblockedLids.size(),
+                unblockedLids.isEmpty() ? "" : "<div class='actions'><button class='btn-block-all' onclick='bloquearTodosLids()'>Bloquear Todos (" + unblockedLids.size() + ")</button></div>",
+                unblockedLids.isEmpty()
+                        ? "<p class='empty'>Nenhum LID pendente de bloqueio. Tudo certo!</p>"
+                        : "<table><thead><tr><th>LID</th><th>Acao</th></tr></thead><tbody>" + lidRows + "</tbody></table>",
+                // Números configurados
+                configRows.toString(),
+                configuredNumbers.isEmpty() ? "<p class='empty'>Nenhum numero configurado no .env.</p>" : "",
                 // Blocklist
                 blocklist.size(),
                 blocklist.isEmpty() ? "Nenhum numero bloqueado." : String.join(" | ", blocklist)
         );
     }
 
+    // ─── ENDPOINTS DO DASHBOARD ─────────────────────────────────
+
     @PostMapping("/dashboard/clear")
     public void clear() {
         messageLogService.clear();
     }
+
+    @PostMapping("/dashboard/block-lid/{lid}")
+    public ResponseEntity<Map<String, Object>> blockLid(@PathVariable String lid) {
+        if (lid == null || lid.isBlank() || lid.length() <= 13) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "blocked", false,
+                    "error", "LID invalido (deve ter mais de 13 digitos)"
+            ));
+        }
+
+        sessionStore.blockNumber(lid);
+        log.info("LID bloqueado via painel: {}", lid);
+        return ResponseEntity.ok(Map.of("blocked", true, "lid", lid));
+    }
+
+    @PostMapping("/dashboard/block-all-lids")
+    public ResponseEntity<Map<String, Object>> blockAllLids() {
+        Set<String> lids = blocklistSyncService.getUnblockedSeenLids();
+        int count = 0;
+        for (String lid : lids) {
+            sessionStore.blockNumber(lid);
+            count++;
+            log.info("LID bloqueado via painel (lote): {}", lid);
+        }
+        return ResponseEntity.ok(Map.of("blocked", count));
+    }
+
+    /**
+     * Bloqueio em lote: aceita uma lista de números e/ou LIDs e bloqueia todos
+     * no Redis de uma vez. O bot não responde nada — apenas registra o bloqueio.
+     *
+     * Body esperado (JSON):
+     * { "numbers": ["5534984114981", "5534988560330", "123456789012345@lid"] }
+     *
+     * Aceita qualquer formato: número real, LID, com ou sem @lid/@s.whatsapp.net.
+     */
+    @PostMapping("/dashboard/block-bulk")
+    public ResponseEntity<Map<String, Object>> blockBulk(@RequestBody Map<String, List<String>> body) {
+        List<String> numbers = body.get("numbers");
+
+        if (numbers == null || numbers.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "blocked", 0,
+                    "error", "Campo 'numbers' vazio ou ausente"
+            ));
+        }
+
+        int count = 0;
+        for (String raw : numbers) {
+            if (raw == null || raw.isBlank()) continue;
+
+            // Remove sufixos do WhatsApp (@s.whatsapp.net, @lid, @g.us)
+            String cleaned = raw.trim()
+                    .replace("@s.whatsapp.net", "")
+                    .replace("@lid", "")
+                    .replace("@g.us", "")
+                    .replaceAll("\\D", "");
+
+            if (cleaned.isBlank()) continue;
+
+            if (!sessionStore.isBlocked(cleaned)) {
+                sessionStore.blockNumber(cleaned);
+                log.info("Número bloqueado via bulk: {}", cleaned);
+                count++;
+            }
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "blocked", count,
+                "total_received", numbers.size()
+        ));
+    }
+
+    // ─── HELPERS ────────────────────────────────────────────────
 
     private String truncate(String text, int max) {
         if (text == null) return "-";

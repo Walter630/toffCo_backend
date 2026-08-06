@@ -1,5 +1,6 @@
 package com.site.toffCo.module.whatzap.service;
 
+import com.site.toffCo.infra.config.WhatsappProperties;
 import com.site.toffCo.module.whatzap.dto.ChatState;
 import com.site.toffCo.module.whatzap.dto.ChatStatus;
 import com.site.toffCo.module.whatzap.dto.SendMessageRequest;
@@ -30,6 +31,7 @@ public class ChatBotService {
     private final WhatsappSessionStore sessionStore;
     private final WhatzapService evolutionApiClient;
     private final MessageLogService messageLog;
+    private final WhatsappProperties whatsappProperties;
 
     /*
      * Número do atendente/gerente que recebe notificações do bot.
@@ -41,6 +43,20 @@ public class ChatBotService {
     // ─── API PÚBLICA ──────────────────────────────────────────────
 
     public boolean sendResponseClient(String numberClient, String textResponse) {
+        /*
+         * ═══ GUARD FINAL ═══
+         * Última barreira antes de enviar qualquer mensagem.
+         * Mesmo que toda a lógica acima falhe, aqui o bot NUNCA
+         * manda mensagem para um número bloqueado.
+         */
+        String cleanNumber = numberClient != null ? numberClient.replaceAll("\\D", "") : "";
+        if (!cleanNumber.isBlank()
+                && (whatsappProperties.isStaticallyBlocked(cleanNumber)
+                    || sessionStore.isBlocked(cleanNumber))) {
+            log.warn("GUARD FINAL: tentativa de enviar msg para número bloqueado {}. Abortado.", cleanNumber);
+            return false;
+        }
+
         try {
             if (sessionStore.isResponseDuplicate(numberClient, textResponse)) {
                 log.info("Resposta duplicada bloqueada: cliente={}", numberClient);
@@ -135,23 +151,30 @@ public class ChatBotService {
     public void handlePossibleHumanIntervention(String whatsappId) {
         /*
          * Busca a sessão existente. Se não existe, significa que o bot
-         * nunca interagiu com esse número — o atendente está conversando
-         * com alguém que nunca passou pelo bot. Nesse caso, NÃO criamos
-         * uma sessão vazia, porque quando o cliente mandar a primeira
-         * mensagem futuramente, ele DEVE receber o menu normalmente.
+         * nunca interagiu com esse número — o atendente está iniciando
+         * uma conversa diretamente. Criamos a sessão já marcada como
+         * atendimento humano para que o bot NÃO responda quando o
+         * cliente responder ao gerente.
          */
         Optional<WhatsappSession> maybeSession = sessionStore.findByWhatsappId(whatsappId);
 
+        WhatsappSession session;
+
         if (maybeSession.isEmpty()) {
-            log.debug(
-                    "Intervenção humana ignorada — sessão inexistente para {}. "
-                            + "Bot nunca interagiu com esse número.",
+            session = WhatsappSession.newSession(whatsappId);
+            session.setHumanAssigned(true);
+            session.setCurrentState(ChatState.ATENDIMENTO_HUMANO);
+            session.setHumanAssingnedAt(Instant.now());
+            sessionStore.save(session);
+            log.info(
+                    "Atendente iniciou conversa com {} (sessão inexistente). "
+                            + "Sessão criada já em atendimento humano.",
                     whatsappId
             );
             return;
         }
 
-        WhatsappSession session = maybeSession.get();
+        session = maybeSession.get();
 
         Instant lastReply = session.getLastBotReplyAt();
         boolean isEchoFromBot = lastReply != null

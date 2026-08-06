@@ -113,6 +113,27 @@ public class WhatsAppController {
                     return ResponseEntity.ok().build();
                 }
 
+                // Verifica TAMBÉM pelo senderPn (número real) e remoteJidAlt
+                // contra AMBAS as listas (estática + Redis) ANTES de resolver.
+                // Isso garante que mesmo um LID novo/desconhecido seja barrado
+                // se o número real associado está na blocklist.
+                String earlyRealNumber = firstNonBlank(key.senderPn(), key.remoteJidAlt());
+                if (earlyRealNumber != null) {
+                    String earlyClean = earlyRealNumber.replaceAll("\\D", "");
+                    if (!earlyClean.isBlank()) {
+                        if (whatsappProperties.isStaticallyBlocked(earlyClean)
+                                || sessionStore.isBlocked(earlyClean)) {
+                            // Auto-bloqueio do LID para futuras mensagens
+                            if (!lidNumber.isBlank() && !sessionStore.isBlocked(lidNumber)) {
+                                sessionStore.blockNumber(lidNumber);
+                                log.info("Auto-bloqueio preventivo: LID {} (real: {})", lidNumber, earlyClean);
+                            }
+                            log.info("BLOQUEADO via LID early-check: lid={}, real={}", lidNumber, earlyClean);
+                            return ResponseEntity.ok().build();
+                        }
+                    }
+                }
+
                 // Em versões recentes da Evolution/Baileys, o telefone real
                 // pode chegar em senderPn quando remoteJidAlt não existe.
                 remoteJid = firstNonBlank(key.remoteJidAlt(), key.senderPn());
