@@ -32,6 +32,7 @@ public class BotDashboardController {
     private final WhatsappMonitoringService monitoringService;
     private final BlocklistSyncService blocklistSyncService;
     private final WhatsappProperties whatsappProperties;
+    private final com.site.toffCo.module.whatzap.monitoring.BlocklistWatchdog blocklistWatchdog;
 
     @GetMapping(value = "/dashboard", produces = MediaType.TEXT_HTML_VALUE)
     public String dashboard() {
@@ -339,6 +340,34 @@ public class BotDashboardController {
     @PostMapping("/dashboard/clear")
     public void clear() {
         messageLogService.clear();
+    }
+
+    /**
+     * Health-check do Watchdog de blocklist.
+     * Retorna o status em tempo real: quantos números estão ativos no Redis,
+     * se houve violações do guard final, e se o auto-repair foi acionado.
+     *
+     * Resposta exemplo:
+     * {
+     *   "healthy": true,
+     *   "totalConfigured": 60,
+     *   "activeInRedis": 60,
+     *   "guardFinalViolations": 0,
+     *   "autoRepairs": 0,
+     *   "lastCheckAt": "2026-08-06T16:00:00Z"
+     * }
+     */
+    @GetMapping("/watchdog")
+    public ResponseEntity<Map<String, Object>> watchdogStatus() {
+        var snapshot = blocklistWatchdog.snapshot();
+        return ResponseEntity.ok(Map.of(
+                "healthy", snapshot.healthy(),
+                "totalConfigured", snapshot.totalConfigured(),
+                "activeInRedis", snapshot.activeInRedis(),
+                "guardFinalViolations", snapshot.guardFinalViolations(),
+                "autoRepairs", snapshot.autoRepairs(),
+                "lastCheckAt", snapshot.lastCheckAt() != null ? snapshot.lastCheckAt().toString() : "never"
+        ));
     }
 
     @PostMapping("/dashboard/block-lid/{lid}")

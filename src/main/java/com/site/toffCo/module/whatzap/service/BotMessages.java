@@ -12,26 +12,36 @@ public class BotMessages {
     );
 
     public static final String WELCOME_MENU =
-            "Olá! 👋 Bem-vindo à *Toff Brasil*!\n\n" +
-            "Sou a Karol, assistente virtual. Como posso ajudar?\n\n" +
-            "1️⃣ Comprar produtos no site\n" +
-            "2️⃣ Manutenção de impressoras 3D\n" +
-            "3️⃣ Consultoria em impressão 3D\n" +
-            "4️⃣ Falar com um atendente\n\n" +
+            "Bem-vindo (a) á *Toff*!\n\n" +
+            "Sou assistente virtual. Como posso ajudar?\n\n" +
+             "*Se o seu interesse é preço, disponibilidade de estoque e marcas que trabalhamos, acesse o site abaixo* \n" + "https://toffbr.com.br/catalogo \n\n" +
+             "Agora se você não quer nada relacionado acima, me diz abaixo o que você busca: \n" +
+            "1️⃣ Manutenção e revisão em impressoras\n" +
+            "2️⃣ Consultoria, mentoria e cursos\n" +
+            "3️⃣ Compras em Atacado\n" +
+            "4️⃣ Dúvidas/atendende\n\n" +
             "Digite o número da opção.";
 
     public static final String ATTENDANCE_SUBJECT_MENU =
             "Qual assunto?\n\n" +
             "1️⃣ Mentoria\n" +
             "2️⃣ Manutenção\n" +
-            "3️⃣ Compra em atacado\n" +
-            "4️⃣ Dúvida sobre produto/máquina\n" +
-            "5️⃣ Outro assunto\n" +
+            "3️⃣ Dúvida sobre produto/máquina\n" +
+            "4️⃣ Outro assunto\n" +
             "0️⃣ Voltar ao menu";
 
     public static String askProblemDescription(String subject) {
         return "Assunto: *" + subject + "*.\n\n" +
                 "Descreva o que precisa em uma mensagem de texto.";
+    }
+
+    public static String askAtacado(String subject) {
+        return "Assunto: *" + subject + "*.\n\n" + "Nosso atacado é a partir de 30kg de filamentos, podendo variar entre cores, marcas e tipos.\n" +
+                "Caso queira dar sequência, como prefere seguir?  " +
+                "1️⃣ Quero receber um orçamento \n" +
+                "2️⃣ Tenho dúvidas antes de fechar \n\n" +
+                "Caso queira voltar ao menu digite o numero abaixo: \n" +
+                "0️⃣ Voltar ao menu";
     }
 
     public static final String HUMAN_ATTENDANCE =

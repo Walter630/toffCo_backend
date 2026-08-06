@@ -32,6 +32,7 @@ public class ChatBotService {
     private final WhatzapService evolutionApiClient;
     private final MessageLogService messageLog;
     private final WhatsappProperties whatsappProperties;
+    private final com.site.toffCo.module.whatzap.monitoring.BlocklistWatchdog blocklistWatchdog;
 
     /*
      * Número do atendente/gerente que recebe notificações do bot.
@@ -54,6 +55,7 @@ public class ChatBotService {
                 && (whatsappProperties.isStaticallyBlocked(cleanNumber)
                     || sessionStore.isBlocked(cleanNumber))) {
             log.warn("GUARD FINAL: tentativa de enviar msg para número bloqueado {}. Abortado.", cleanNumber);
+            blocklistWatchdog.recordGuardFinalViolation(cleanNumber);
             return false;
         }
 
@@ -331,6 +333,7 @@ public class ChatBotService {
             case MAQUINAS             -> handleCatalogo(session, messageText, "MAQUINAS");
             case ACESSORIOS           -> handleCatalogo(session, messageText, "ACESSORIOS");
             case ASSUNTO_ATENDIMENTO  -> handleAssuntoAtendimento(session, messageText);
+            case ATACADO -> handleAssuntoAtacado(session, messageText);
             case DESCRICAO_ATENDIMENTO -> handleDescricaoAtendimento(
                     session,
                     messageText,
@@ -405,19 +408,19 @@ public class ChatBotService {
         //trim remove os espaços invalidos do texto
         return switch (normalizedText) {
             case "1" -> {
-                session.setCurrentState(CATALOGO);
-                session.setCurrentPage(1);
-                yield BotMessages.getCatalogLink("PRODUTOS");
+                session.setAttendanceSubject("Manutenção e revisão em impressoras");
+                session.setCurrentState(DESCRICAO_ATENDIMENTO);
+                yield BotMessages.askProblemDescription(session.getAttendanceSubject());
             }
             case "2" -> {
-                session.setAttendanceSubject("Manutenção de impressoras 3D");
+                session.setAttendanceSubject("Consultoria, mentoria e cursos");
                 session.setCurrentState(DESCRICAO_ATENDIMENTO);
                 yield BotMessages.askProblemDescription(session.getAttendanceSubject());
             }
             case "3" -> {
-                session.setAttendanceSubject("Consultoria em impressão 3D");
-                session.setCurrentState(DESCRICAO_ATENDIMENTO);
-                yield BotMessages.askProblemDescription(session.getAttendanceSubject());
+                session.setAttendanceSubject("Compras em atacado");
+                session.setCurrentState(ATACADO);
+                yield BotMessages.askAtacado(session.getAttendanceSubject());
             }
             case "4" -> { session.setCurrentState(ASSUNTO_ATENDIMENTO); yield BotMessages.ATTENDANCE_SUBJECT_MENU; }
             // Texto livre no menu nÃ£o deve parecer um erro para o cliente.
@@ -427,32 +430,19 @@ public class ChatBotService {
     }
 
     private String handleAssuntoAtendimento(WhatsappSession session, String text) {
-        if (text == null || text.isBlank()) {
-            return BotMessages.ATTENDANCE_SUBJECT_MENU;
-        }
-        if ("0".equals(text.trim())) {
-            session.setCurrentState(MENU_PRINCIPAL);
-            session.setCurrentPage(1);
-            session.setAttendanceSubject(null);
-            return BotMessages.BACK_TO_MENU;
-        }
+        return handleOpcaoComSubject(session, text, Map.of(
+                "1", "Mentoria",
+                "2", "Manutenção em máquina",
+                "3", "Dúvida sobre catálogo, produto ou máquina",
+                "4", "Outro assunto"
+        ), BotMessages.ATTENDANCE_SUBJECT_MENU);
+    }
 
-        String subject = switch (text.trim()) {
-            case "1" -> "Mentoria";
-            case "2" -> "Manutenção em máquina";
-            case "3" -> "Compra em atacado acima de 30kg";
-            case "4" -> "Dúvida sobre catálogo, produto ou máquina";
-            case "5" -> "Outro assunto";
-            default  -> null;
-        };
-
-        if (subject == null) {
-            return BotMessages.INVALID_OPTION + "\n\n" + BotMessages.ATTENDANCE_SUBJECT_MENU;
-        }
-
-        session.setAttendanceSubject(subject);
-        session.setCurrentState(DESCRICAO_ATENDIMENTO);
-        return BotMessages.askProblemDescription(subject);
+    private String handleAssuntoAtacado(WhatsappSession session, String text) {
+        return handleOpcaoComSubject(session, text, Map.of(
+                "1", "Quero receber um orçamento",
+                "2", "Tenho dúvidas antes de fechar"
+        ), BotMessages.askAtacado("Compras em atacado"));
     }
 
     private String handleDescricaoAtendimento(
@@ -608,5 +598,32 @@ public class ChatBotService {
                     whatsappId
             );
         }
+    }
+
+    private String handleOpcaoComSubject (
+            WhatsappSession session,
+            String text,
+            Map<String, String> opcoes,
+            String menuFallback
+    ) {
+        if (text == null || text.isBlank()) {
+            return menuFallback;
+        }
+
+        if ("0".equals(text.trim())) {
+            session.setCurrentState(MENU_PRINCIPAL);
+            session.setCurrentPage(1);
+            session.setAttendanceSubject(null);
+            return BotMessages.BACK_TO_MENU;
+        }
+
+        String subject = opcoes.get(text.trim());
+        if (subject == null || subject.isBlank()) {
+            return BotMessages.INVALID_OPTION + "\n\n" + menuFallback;
+        }
+
+        session.setAttendanceSubject(subject);
+        session.setCurrentState(DESCRICAO_ATENDIMENTO);
+        return BotMessages.askProblemDescription(subject);
     }
 }
