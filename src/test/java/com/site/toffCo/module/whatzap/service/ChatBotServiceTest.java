@@ -1,5 +1,6 @@
 package com.site.toffCo.module.whatzap.service;
 
+import com.site.toffCo.infra.config.WhatsappProperties;
 import com.site.toffCo.module.whatzap.dto.ChatState;
 import com.site.toffCo.module.whatzap.monitoring.MessageLogService;
 import com.site.toffCo.module.whatzap.session.WhatsappSession;
@@ -17,6 +18,7 @@ class ChatBotServiceTest {
     @Mock WhatsappSessionStore sessionStore;
     @Mock WhatzapService evolutionApiClient;
     @Mock MessageLogService messageLog;
+    @Mock WhatsappProperties whatsappProperties;
 
     @Test
     void menuPrincipalTemAsQuatroOpcoesNovas() {
@@ -24,7 +26,7 @@ class ChatBotServiceTest {
         WhatsappSession session = WhatsappSession.newSession(number);
         when(sessionStore.markMessageAsProcessed("m1", number, "oi")).thenReturn(true);
         when(sessionStore.findByWhatsappId(number)).thenReturn(Optional.of(session));
-        ChatBotService service = new ChatBotService(sessionStore, evolutionApiClient, messageLog);
+        ChatBotService service = new ChatBotService(sessionStore, evolutionApiClient, messageLog, whatsappProperties);
         String response = service.simulateIncomingMessage(number, "oi", "m1");
         assertTrue(response.contains("Comprar produtos no site"));
         assertTrue(response.contains("Manutenção de impressoras 3D"));
@@ -39,7 +41,7 @@ class ChatBotServiceTest {
                 null, null, null, null, null, null, null, null);
         when(sessionStore.markMessageAsProcessed("m2", number, "2")).thenReturn(true);
         when(sessionStore.findByWhatsappId(number)).thenReturn(Optional.of(session));
-        ChatBotService service = new ChatBotService(sessionStore, evolutionApiClient, messageLog);
+        ChatBotService service = new ChatBotService(sessionStore, evolutionApiClient, messageLog, whatsappProperties);
         String response = service.simulateIncomingMessage(number, "2", "m2");
         assertEquals(ChatState.DESCRICAO_ATENDIMENTO, session.getCurrentState());
         assertEquals("Manutenção de impressoras 3D", session.getAttendanceSubject());
@@ -50,7 +52,7 @@ class ChatBotServiceTest {
     void mensagemDuplicadaNaoEhProcessadaDuasVezes() {
         String number = "5511999999999";
         when(sessionStore.markMessageAsProcessed("duplicada", number, "1")).thenReturn(false);
-        ChatBotService service = new ChatBotService(sessionStore, evolutionApiClient, messageLog);
+        ChatBotService service = new ChatBotService(sessionStore, evolutionApiClient, messageLog, whatsappProperties);
         assertNull(service.simulateIncomingMessage(number, "1", "duplicada"));
         verify(sessionStore, never()).save(any());
         verifyNoInteractions(evolutionApiClient);
@@ -68,7 +70,7 @@ class ChatBotServiceTest {
         when(evolutionApiClient.sendMessage(any()))
                 .thenReturn(true);
 
-        ChatBotService service = new ChatBotService(sessionStore, evolutionApiClient, messageLog);
+        ChatBotService service = new ChatBotService(sessionStore, evolutionApiClient, messageLog, whatsappProperties);
 
         assertTrue(service.sendResponseClient(number, "menu"));
         service.handlePossibleHumanIntervention(number);
