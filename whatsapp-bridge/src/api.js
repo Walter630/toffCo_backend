@@ -218,6 +218,27 @@ export function createApi(logger) {
         });
     });
 
+    // ─── GET /contacts-dump ───────────────────────────────────
+    //
+    // Despeja TODOS os contatos que o Baileys conhece.
+    // Útil pra debug: ver quais contatos têm LID mapeado.
+
+    app.get('/contacts-dump', (req, res) => {
+        const sock = getSocket();
+        if (!sock) {
+            return res.status(503).json({ error: 'Socket não disponível' });
+        }
+
+        // O Baileys mantém contatos em sock.store?.contacts ou sock.authState
+        // Nas versões mais novas, os contatos são emitidos via eventos
+        // e armazenados no nosso lid-store.
+        return res.json({
+            lidStoreMappings: getAllMappings(),
+            stats: getStats(),
+            note: 'Use /resolve-numbers com POST para forçar resolução de números específicos'
+        });
+    });
+
     // ─── POST /lid-mappings/import ────────────────────────────
     //
     // Importa mapeamentos LID→número manualmente.
