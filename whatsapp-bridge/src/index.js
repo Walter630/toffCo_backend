@@ -19,7 +19,7 @@ loadEnvFile();
 
 import pino from 'pino';
 import { startConnection, setOnMessageReceived } from './connection.js';
-import { handleIncomingMessage, refreshBlocklist } from './message-handler.js';
+import { handleIncomingMessage, refreshBlocklist, forceResolveLids } from './message-handler.js';
 import { createApi } from './api.js';
 import { flushToDisk } from './lid-store.js';
 
@@ -62,12 +62,23 @@ async function main() {
     // 4. Baixa a blocklist do backend (espera ele subir)
     setTimeout(async () => {
         await refreshBlocklist(logger);
+
+        // 4b. Força resolução de TODOS os números bloqueados → LIDs
+        // O sock.onWhatsApp() é SILENCIOSO — ninguém recebe notificação.
+        // Isso garante que os LIDs de todos os bloqueados sejam descobertos
+        // e registrados no backend (via /resolve-numbers que o backend chama).
+        await forceResolveLids(logger);
     }, 20_000); // 20s pro backend terminar de subir
 
-    // 5. Atualiza a blocklist a cada 3 minutos
+    // 5. Atualiza a blocklist a cada 1 minuto
     setInterval(async () => {
         await refreshBlocklist(logger);
-    }, 180_000);
+    }, 60_000);
+
+    // 6. Re-resolve LIDs a cada 10 minutos (pega novos mapeamentos)
+    setInterval(async () => {
+        await forceResolveLids(logger);
+    }, 600_000);
 }
 
 main().catch((error) => {

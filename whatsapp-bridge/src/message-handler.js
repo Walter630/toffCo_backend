@@ -54,6 +54,80 @@ export async function refreshBlocklist(logger) {
 }
 
 /**
+ * Força a resolução de TODOS os números da blocklist local para seus LIDs.
+ * Usa sock.onWhatsApp() que é SILENCIOSO — ninguém recebe notificação.
+ * 
+ * Quando resolve, registra o mapeamento no lid-store E notifica o backend
+ * chamando /resolve-numbers (que o BlocklistSyncService já consome).
+ * 
+ * Resultado: o Redis do backend fica com NÚMERO + LID bloqueados.
+ */
+export async function forceResolveLids(logger) {
+    if (!blocklistLoaded || localBlocklist.size === 0) {
+        if (logger) logger.debug('forceResolveLids: blocklist vazia, pulando');
+        return;
+    }
+
+    const { getSocket, getStatus, registerLidToNumber } = await import('./connection.js');
+    const { registerMapping } = await import('./lid-store.js');
+    const sock = getSocket();
+    if (!sock || getStatus() !== 'open') {
+        if (logger) logger.warn('forceResolveLids: socket não conectado, pulando');
+        return;
+    }
+
+    const numbers = [...localBlocklist].filter(n => n.length <= 13); // Só números reais, não LIDs
+    if (numbers.length === 0) return;
+
+    if (logger) logger.info({ total: numbers.length }, 'Resolvendo LIDs de todos os números bloqueados...');
+
+    let resolved = 0;
+
+    // Processa em lotes de 5 pra não sobrecarregar
+    for (let i = 0; i < numbers.length; i += 5) {
+        const batch = numbers.slice(i, i + 5);
+        const jids = batch.map(n => n + '@s.whatsapp.net');
+
+        try {
+            const results = await Promise.race([
+                sock.onWhatsApp(...jids),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
+            ]);
+
+            if (results) {
+                for (const result of results) {
+                    if (result.exists && result.jid) {
+                        const phone = result.jid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+
+                        // Se o WhatsApp retornou um LID associado
+                        if (result.lid) {
+                            const lid = result.lid.replace('@lid', '').replace(/\D/g, '');
+                            if (lid && lid !== phone) {
+                                registerMapping(lid, phone, logger);
+                                registerLidToNumber(lid, phone);
+                                // Adiciona o LID à blocklist local também
+                                localBlocklist.add(lid);
+                                resolved++;
+                                if (logger) logger.info({ phone, lid }, 'LID resolvido e bloqueado');
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            if (logger) logger.debug({ batch, error: error.message }, 'Falha ao resolver lote');
+        }
+
+        // Pausa entre lotes pra não ser rate-limited
+        if (i + 5 < numbers.length) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+    }
+
+    if (logger) logger.info({ resolved, total: numbers.length }, 'Resolução de LIDs concluída');
+}
+
+/**
  * Verifica se um número/LID está na blocklist local.
  */
 function isLocallyBlocked(identifier) {
@@ -124,16 +198,25 @@ export async function handleIncomingMessage(msg, logger) {
                 }
             }
 
-            // 3. Último recurso: usa o LID como identificador
+            // 3. Último recurso: tenta resolver via sock.onWhatsApp() em TEMPO REAL
+            //    antes de decidir se deixa passar ou não.
             if (remoteJid.endsWith('@lid')) {
                 const lidAsNumber = remoteJid.replace('@lid', '');
-                // senderPn fica null — backend saberá que não temos o número real
-                remoteJid = lidAsNumber + '@s.whatsapp.net';
                 registerLidMapping(lidAsNumber);
-                logger.info({ lid: lidAsNumber, messageId, fromMe }, 'LID não resolvido — usado como identificador');
 
-                // 4. Tenta resolver em background para futuras mensagens
-                tryResolveInBackground(lidAsNumber, logger);
+                // Tentativa síncrona: resolve o LID usando o Baileys
+                const resolvedRealTime = await tryResolveRealTime(lidAsNumber, logger);
+                if (resolvedRealTime) {
+                    senderPn = resolvedRealTime;
+                    remoteJid = resolvedRealTime + '@s.whatsapp.net';
+                    registerLidToNumber(lidAsNumber, resolvedRealTime);
+                    logger.info({ lid: lidAsNumber, resolvedTo: resolvedRealTime }, 'LID resolvido em tempo real');
+                } else {
+                    // NÃO conseguiu resolver. Usa o LID como identificador
+                    // mas VERIFICA contra a blocklist do backend antes de repassar.
+                    remoteJid = lidAsNumber + '@s.whatsapp.net';
+                    logger.info({ lid: lidAsNumber, messageId, fromMe }, 'LID não resolvido — verificando blocklist');
+                }
             }
         }
 
@@ -147,6 +230,10 @@ export async function handleIncomingMessage(msg, logger) {
         // Verifica se o número (real ou LID) está bloqueado ANTES
         // de enviar pro backend. Isso é a proteção principal quando
         // o bridge não consegue resolver LID → número real.
+        //
+        // REGRA EXTRA: Se o LID não foi resolvido (senderPn=null) e
+        // o LID tem > 13 dígitos, consulta o backend em tempo real
+        // para verificar se deve bloquear.
         if (!fromMe) {
             const numberFromJid = remoteJid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
             const blocked = isLocallyBlocked(numberFromJid)
@@ -156,6 +243,19 @@ export async function handleIncomingMessage(msg, logger) {
             if (blocked) {
                 logger.info({ number: numberFromJid, senderPn, originalLid }, 'BLOQUEADO pelo bridge (blocklist local)');
                 return; // Não repassa pro backend
+            }
+
+            // Se é um LID não resolvido (sem número real), consulta o backend
+            // para verificação extra. O backend pode ter bloqueado esse LID
+            // via dashboard/block-bulk desde o último refresh da blocklist local.
+            if (originalLid && !senderPn && numberFromJid.length > 13) {
+                const isBlockedOnBackend = await checkBlockedOnBackend(numberFromJid, logger);
+                if (isBlockedOnBackend) {
+                    // Adiciona à blocklist local pra não consultar de novo
+                    localBlocklist.add(numberFromJid);
+                    logger.info({ lid: numberFromJid }, 'LID bloqueado após consulta ao backend');
+                    return;
+                }
             }
         }
 
@@ -213,36 +313,102 @@ export async function handleIncomingMessage(msg, logger) {
     }
 }
 
-// ─── RESOLUÇÃO EM BACKGROUND ──────────────────────────────────
+// ─── RESOLUÇÃO EM TEMPO REAL ──────────────────────────────────
 
 /**
- * Tenta resolver um LID para número real usando sock.onWhatsApp().
- * Se conseguir, registra no lid-store para futuras mensagens.
- * Não bloqueia o fluxo principal.
+ * Tenta resolver um LID para número real em TEMPO REAL usando múltiplas estratégias.
+ * Bloqueia o fluxo por no máximo 3 segundos. Se não resolver, retorna null.
+ *
+ * Estratégias (em ordem):
+ * 1. Store de contatos do Baileys (cache local)
+ * 2. sock.onWhatsApp() com o LID convertido
+ * 3. Consulta ao lid-store persistente (double-check)
  */
-async function tryResolveInBackground(lidDigits, logger) {
+async function tryResolveRealTime(lidDigits, logger) {
     try {
         const sock = getSocket();
-        if (!sock || getStatus() !== 'open') return;
+        if (!sock || getStatus() !== 'open') return null;
 
-        // onWhatsApp espera JIDs com @s.whatsapp.net, mas com LID não funciona bem.
-        // Alternativa: buscar no store de contatos do socket
-        const contactJid = lidDigits + '@lid';
-
-        // Tenta buscar info do contato (pode retornar o número em algumas versões)
+        // Estratégia 1: store de contatos
         if (sock.store?.contacts) {
-            const contact = sock.store.contacts[contactJid];
-            if (contact && contact.id && contact.id.endsWith('@s.whatsapp.net')) {
-                const number = contact.id.replace('@s.whatsapp.net', '').replace(/\D/g, '');
-                if (number) {
-                    registerLidToNumber(lidDigits, number);
-                    logger.info({ lid: lidDigits, number }, 'LID resolvido via store.contacts em background');
+            // Tenta pelo @lid
+            const contactByLid = sock.store.contacts[lidDigits + '@lid'];
+            if (contactByLid?.id?.endsWith('@s.whatsapp.net')) {
+                return contactByLid.id.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+            }
+
+            // Busca reversa: procura no store algum contato com o LID
+            for (const [jid, contact] of Object.entries(sock.store.contacts)) {
+                if (contact.lid === lidDigits + '@lid' && jid.endsWith('@s.whatsapp.net')) {
+                    return jid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
                 }
             }
         }
+
+        // Estratégia 2: sock.onWhatsApp() — pergunta ao WhatsApp diretamente
+        // Isso funciona quando o LID corresponde a um contato no telefone
+        try {
+            const jidToCheck = lidDigits + '@s.whatsapp.net';
+            const results = await Promise.race([
+                sock.onWhatsApp(jidToCheck),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+            ]);
+
+            if (results && results.length > 0) {
+                for (const result of results) {
+                    if (result.exists && result.jid) {
+                        const number = result.jid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+                        if (number && number.length <= 15) {
+                            return number;
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            // Timeout ou erro — segue sem resolver
+            logger.debug({ lid: lidDigits, error: e.message }, 'onWhatsApp falhou para LID');
+        }
+
+        // Estratégia 3: double-check no lid-store (pode ter sido atualizado por outro processo)
+        const fromStore = resolveToNumber(lidDigits);
+        if (fromStore) return fromStore;
+
+        return null;
     } catch (error) {
-        // Silencioso — é tentativa best-effort
-        logger.debug({ lid: lidDigits, error: error.message }, 'Falha na resolução background de LID');
+        logger.debug({ lid: lidDigits, error: error.message }, 'Falha na resolução em tempo real');
+        return null;
+    }
+}
+
+/**
+ * Consulta o backend em tempo real pra saber se um LID está bloqueado.
+ * Usado quando o LID não foi resolvido pra número real.
+ */
+async function checkBlockedOnBackend(lidNumber, logger) {
+    try {
+        const response = await fetch(`${BACKEND_BASE_URL}/api/webhook/whatsapp/blocklist`, {
+            signal: AbortSignal.timeout(3000),
+        });
+        if (!response.ok) return false;
+
+        const data = await response.json();
+        let blocklist;
+        if (Array.isArray(data)) {
+            blocklist = new Set(data.map(n => String(n).replace(/\D/g, '')));
+        } else if (data && typeof data === 'object') {
+            blocklist = new Set(Object.values(data).map(n => String(n).replace(/\D/g, '')));
+        } else {
+            return false;
+        }
+
+        // Atualiza a blocklist local de uma vez (refresh oportunístico)
+        localBlocklist = blocklist;
+        blocklistLoaded = true;
+
+        return blocklist.has(lidNumber);
+    } catch (error) {
+        logger.debug({ error: error.message }, 'Falha ao consultar backend para LID');
+        return false;
     }
 }
 

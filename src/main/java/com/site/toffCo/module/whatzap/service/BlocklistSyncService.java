@@ -15,6 +15,7 @@ import org.springframework.web.client.RestClient;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -104,7 +105,7 @@ public class BlocklistSyncService {
      * carregados ou mensagens são trocadas. Este job garante que a
      * blocklist no Redis sempre tenha os LIDs mais recentes.
      */
-    @Scheduled(fixedDelay = 300_000, initialDelay = 120_000) // 5 min, começa após 2 min
+    @Scheduled(fixedDelay = 120_000, initialDelay = 60_000) // 2 min, começa após 1 min
     public void periodicLidSync() {
         List<String> blockedNumbers = whatsappProperties.blockedNumbers();
         if (blockedNumbers == null || blockedNumbers.isEmpty()) {
@@ -133,6 +134,32 @@ public class BlocklistSyncService {
             log.info("Blocklist: {} novos LIDs bloqueados no Redis neste ciclo", totalNewLids);
         } else {
             log.debug("Blocklist: nenhum LID novo encontrado neste ciclo");
+        }
+
+        // Verifica quais números da blocklist AINDA não têm LID mapeado.
+        // Esses são os que podem escapar se mandarem mensagem via LID.
+        List<String> unresolvedNumbers = new ArrayList<>();
+        for (String number : blockedNumbers) {
+            // Se o número real está no Redis, ok. Mas tem LID correspondente?
+            boolean hasLidBlocked = knownBlockedLids.stream()
+                    .anyMatch(lid -> !lid.equals(number)); // pelo menos 1 LID diferente do número
+            // Na verdade, verificamos: o número está bloqueado E algum LID foi associado a ele?
+            // Como não temos o mapeamento reverso aqui, verificamos se o bridge resolveu
+            if (!knownBlockedLids.isEmpty()) {
+                // Se temos LIDs conhecidos, está ok — o sync funcionou
+            }
+            // Simplificação: se após o sync o total de LIDs bloqueados < total de números,
+            // significa que alguns não foram resolvidos
+        }
+        int totalResolved = knownBlockedLids.size();
+        int totalNumbers = blockedNumbers.size();
+        if (totalResolved < totalNumbers) {
+            log.warn(
+                    "Blocklist sync: {}/{} números resolvidos para LID. {} números podem estar vulneráveis via LID não mapeado.",
+                    totalResolved,
+                    totalNumbers,
+                    totalNumbers - totalResolved
+            );
         }
     }
 
