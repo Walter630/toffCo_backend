@@ -71,7 +71,26 @@ export function createApi(logger) {
             if (delay && delay > 0) {
                 await sleep(Math.min(delay, 5000)); // max 5s pra não travar
             }
+            const urlMatch = text.match(/https?:\/\/[^\s]+/);
+            let messageContent;
 
+            if (urlMatch) {
+                messageContent = {
+                    text,
+                    contextInfo: {
+                        externalAdReply: {
+                            title: 'ToffBrasil',
+                            body: 'ToffBr — catálogo de impressões 3D e filamentos',
+                            thumbnailUrl: 'https://toffbr.com.br/icon-192x192.png',
+                            sourceUrl: urlMatch[0],
+                            mediaType: 1,
+                            renderLargerThumbnail: true
+                        }
+                    }
+                };
+            } else {
+                messageContent = { text };
+            }
             // Envia a mensagem
             const result = await sock.sendMessage(jid, { text });
 
