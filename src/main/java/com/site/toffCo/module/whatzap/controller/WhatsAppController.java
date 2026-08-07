@@ -233,6 +233,30 @@ public class WhatsAppController {
             // Registra LIDs vistos (números > 13 dígitos) para consulta posterior
             if (number.length() > 13) {
                 blocklistSyncService.registerSeenLid(number);
+
+                /*
+                 * LID NÃO RESOLVIDO (sem número real):
+                 * Se o número tem >13 dígitos (é LID) e o senderPn não veio,
+                 * significa que o Baileys não sabe quem é essa pessoa.
+                 * 
+                 * FATO: Clientes NOVOS (que nunca interagiram com o telefone antes)
+                 * SEMPRE chegam via @s.whatsapp.net direto OU com senderPn preenchido.
+                 * LIDs sem senderPn só aparecem para contatos que já estavam no telefone
+                 * antes — ou seja, são os números que já conhecemos (bloqueados ou não).
+                 * 
+                 * LÓGICA: Se é LID sem senderPn E não está explicitamente LIBERADO
+                 * (não tem sessão ativa no bot), silenciamos. O bot não responde.
+                 * Se a pessoa for legítima, ela pode mandar msg de novo e o Baileys
+                 * vai eventualmente resolver o LID (ou ela manda do app e chega como @s.whatsapp.net).
+                 */
+                if (realNumber == null && !Boolean.TRUE.equals(key.fromMe())) {
+                    log.warn(
+                            "LID sem senderPn detectado: {}. Bot NÃO responderá por segurança. messageId={}",
+                            number,
+                            key.id()
+                    );
+                    return ResponseEntity.ok().build();
+                }
             }
 
             /*
