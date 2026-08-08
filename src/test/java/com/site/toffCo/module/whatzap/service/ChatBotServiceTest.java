@@ -33,11 +33,11 @@ class ChatBotServiceTest {
         assertTrue(response.contains("Manutenção e revisão em impressoras"));
         assertTrue(response.contains("Consultoria, mentoria e cursos"));
         assertTrue(response.contains("Compras em Atacado"));
-        assertTrue(response.contains("Dúvidas/atendende"));
+        assertTrue(response.contains("Dúvidas/atendimento"));
     }
 
     @Test
-    void opcaoDoisPedeDescricaoEPreparaAtendimento() {
+    void opcaoDoisEncaminhaDiretamenteParaAtendimento() {
         String number = "5511999999999";
         WhatsappSession session = new WhatsappSession(number, ChatState.MENU_PRINCIPAL, 1, false,
                 null, null, null, null, null, null, null, null);
@@ -45,9 +45,10 @@ class ChatBotServiceTest {
         when(sessionStore.findByWhatsappId(number)).thenReturn(Optional.of(session));
         ChatBotService service = new ChatBotService(sessionStore, evolutionApiClient, messageLog, whatsappProperties, blocklistWatchdog);
         String response = service.simulateIncomingMessage(number, "2", "m2");
-        assertEquals(ChatState.DESCRICAO_ATENDIMENTO, session.getCurrentState());
+        assertEquals(ChatState.ATENDIMENTO_HUMANO, session.getCurrentState());
         assertEquals("Consultoria, mentoria e cursos", session.getAttendanceSubject());
-        assertTrue(response.contains("Descreva o que precisa"));
+        assertTrue(session.isHumanAssigned());
+        assertNull(response);
     }
 
     @Test

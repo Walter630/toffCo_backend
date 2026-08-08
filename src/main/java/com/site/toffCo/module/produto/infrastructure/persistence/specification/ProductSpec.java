@@ -4,18 +4,58 @@ import com.site.toffCo.module.produto.domain.Produto;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.util.List;
+import java.util.Locale;
 
 public class ProductSpec {
 
     public static Specification<Produto> findByName(String name) {
-        return (root, query, cb) ->
-                name == null ? null : cb.like(cb.lower(root.get("name")), "%" + name.toLowerCase() + "%");
+        return (root, query, cb) -> {
+            String normalizedName = normalizeSearchTerm(name);
+
+            if (normalizedName == null) {
+                return null;
+            }
+
+            return cb.like(
+                    cb.function(
+                            "unaccent",
+                            String.class,
+                            cb.lower(root.get("name"))
+                    ),
+                    "%" + normalizedName + "%"
+            );
+        };
     }
 
     public static Specification<Produto> findByDescricao(String description) {
-        return (root, query, cb) ->
-                description == null ? null : cb.like(cb.lower(root.get("description")), "%" + description.toLowerCase() + "%");
+        return (root, query, cb) -> {
+            String normalizedDescription = normalizeSearchTerm(description);
+
+            if (normalizedDescription == null) {
+                return null;
+            }
+
+            return cb.like(
+                    cb.function(
+                            "unaccent",
+                            String.class,
+                            cb.lower(root.get("description"))
+                    ),
+                    "%" + normalizedDescription + "%"
+            );
+        };
+    }
+
+    private static String normalizeSearchTerm(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return Normalizer.normalize(value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT);
     }
 
     public static Specification<Produto> findByCategory(String categoria) {

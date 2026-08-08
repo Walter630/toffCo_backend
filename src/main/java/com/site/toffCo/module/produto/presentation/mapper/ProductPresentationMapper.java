@@ -20,6 +20,8 @@ public class ProductPresentationMapper {
                 request.type(),
                 request.typePersonalizado(),
                 request.marca(),
+                request.peso(),
+                request.diametro(),
                 request.status()
         );
     }
@@ -37,6 +39,8 @@ public class ProductPresentationMapper {
                 request.type(),
                 request.typePersonalizado(),
                 request.marca(),
+                request.peso(),
+                request.diametro(),
                 request.status()
         );
     }
@@ -51,6 +55,8 @@ public class ProductPresentationMapper {
                 produto.getPrice(),
                 produto.getEstoque(),
                 produto.getType(),
+                produto.getPeso(),
+                produto.getDiametro(),
                 produto.getTypePersonalizado(),
                 produto.getStatus(),
                 produto.getCodigoBarras(),

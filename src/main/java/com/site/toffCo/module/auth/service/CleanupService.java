@@ -18,6 +18,6 @@ public class CleanupService {
     @Scheduled(cron = "0 0 3 * * ?")
     @Transactional
     public void cleanup() {
-        refreshTokenRepository.deleteByExpiryDate(Instant.now());
+        refreshTokenRepository.deleteByExpiryDateBefore(Instant.now());
     }
 }

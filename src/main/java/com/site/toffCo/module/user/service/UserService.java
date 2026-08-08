@@ -78,6 +78,7 @@ public class UserService {
     @Transactional
     public LoginResponseDTO login(LoginRequestDTO loginRequestDTO) {
         String email = loginRequestDTO.email().trim().toLowerCase();
+
         var user = new UsernamePasswordAuthenticationToken(email, loginRequestDTO.password());
         this.authenticationManager.authenticate(user);
         var userCreate = repository.findByEmail(email)
@@ -85,7 +86,7 @@ public class UserService {
         var accessToken = tokenService.generateToken(email);
 
         var refreshToken = refreshTokenService.createRefreshToken(userCreate);
-        log.info("Token: {}, refreshToken: {}", accessToken, refreshToken);
+        log.info("Login realizado para o usuário {}", email);
         return new LoginResponseDTO(
                 accessToken,
                 refreshToken.getToken(),
@@ -107,8 +108,12 @@ public class UserService {
                 .map(RefreshToken::getUser)
                 .map(user -> {
                     String newAccessToken = tokenService.generateToken(user.getEmail());
-                    return new LoginResponseDTO(newAccessToken, refreshTokenDTO.refreshToken(), new LoginResponseDTO.UserRequestDTO(
-                            user.getEmail(), user.getUsername(), user.getRole().name()
+                    return new LoginResponseDTO
+                            (newAccessToken, refreshTokenDTO.refreshToken(),
+                                    new LoginResponseDTO.UserRequestDTO(
+                                            user.getEmail(),
+                                            user.getUsername(),
+                                            user.getRole().name()
                     ));
                 })
                 .orElseThrow(() -> new InvalidRefreshToken("Refresh token invalid"));

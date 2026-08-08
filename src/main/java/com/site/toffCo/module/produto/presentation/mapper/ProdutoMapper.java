@@ -38,6 +38,8 @@ public abstract class ProdutoMapper {
     @Mapping(target = "description", source = "dto.description")
     @Mapping(target = "price", source = "dto.price")
     @Mapping(target = "image", source = "dto.image")
+    @Mapping(target = "peso", source = "dto.peso")
+    @Mapping(target = "diametro", source = "dto.diametro")
     @Mapping(target = "status", source = "dto.status")
     public abstract void toUpdateEntity(UpdateProductCommand dto, @MappingTarget Produto produto);
 }

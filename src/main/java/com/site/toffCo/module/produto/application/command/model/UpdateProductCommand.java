@@ -15,6 +15,8 @@ public record UpdateProductCommand(
         ProductType type,
         String typePersonalizado,
         String marca,
+        Integer peso,
+        BigDecimal diametro,
         ProductStatus status
 ) {
 }

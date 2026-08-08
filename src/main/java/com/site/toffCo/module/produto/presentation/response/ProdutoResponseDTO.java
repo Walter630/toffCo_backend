@@ -15,6 +15,8 @@ public record ProdutoResponseDTO(
         BigDecimal price,
         BigDecimal estoque,
         ProductType type,
+        Integer peso,
+        BigDecimal diametro,
         String typePersonalizado,
         ProductStatus status,
         String codigoBarras,

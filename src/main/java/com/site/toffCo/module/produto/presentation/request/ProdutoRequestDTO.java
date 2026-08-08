@@ -26,8 +26,10 @@ public record ProdutoRequestDTO(
         String codigoBarras,
         ProductType type,
         String typePersonalizado,
-        ProductStatus status,
-        String marca
+        String marca,
+        Integer peso,
+        BigDecimal diametro,
+        ProductStatus status
 ) {
 
         public CreateProductCommand toCommand() {
@@ -41,6 +43,8 @@ public record ProdutoRequestDTO(
                         type,
                         typePersonalizado,
                         marca,
+                        peso,
+                        diametro,
                         status
                 );
         }

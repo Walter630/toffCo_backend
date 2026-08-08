@@ -44,6 +44,14 @@ public class ChatBotService {
     // ─── API PÚBLICA ──────────────────────────────────────────────
 
     public boolean sendResponseClient(String numberClient, String textResponse) {
+        return sendResponseClient(numberClient, textResponse, false);
+    }
+
+    private boolean sendResponseClient(
+            String numberClient,
+            String textResponse,
+            boolean allowHumanAssignedResponse
+    ) {
         /*
          * ═══ GUARD FINAL ═══
          * Última barreira antes de enviar qualquer mensagem.
@@ -77,7 +85,8 @@ public class ChatBotService {
         }
 
         //re-verificação
-        if (sessionStore.findByWhatsappId(numberClient)
+        if (!allowHumanAssignedResponse
+                && sessionStore.findByWhatsappId(numberClient)
                 .map(WhatsappSession::isHumanAssigned)
                 .orElse(false)) {
             log.info("Gerente respondeu durante o typing. Bot Silencia para {}", numberClient);
@@ -87,7 +96,7 @@ public class ChatBotService {
         SendMessageRequest request = new SendMessageRequest(
                 numberClient,
                 textResponse,
-                500
+                2000
         );
 
         // Marca antes da chamada externa para fechar a janela de corrida:
@@ -137,7 +146,8 @@ public class ChatBotService {
     ) {
         boolean sent = sendResponseClient(
                 session.getWhatsappId(),
-                text
+                text,
+                true
         );
 
         if (!sent) {
@@ -327,7 +337,7 @@ public class ChatBotService {
          */
         String responseText = switch (session.getCurrentState()) {
             case NOVO                 -> handleNovo(session);
-            case MENU_PRINCIPAL       -> handleMenuPrincipal(session, messageText);
+            case MENU_PRINCIPAL       -> handleMenuPrincipal(session, messageText, sendToWhatsapp);
             case CATALOGO             -> handleCatalogo(session, messageText, "PRODUTOS");
             case FILAMENTO            -> handleCatalogo(session, messageText, "FILAMENTOS");
             case MAQUINAS             -> handleCatalogo(session, messageText, "MAQUINAS");
@@ -393,7 +403,7 @@ public class ChatBotService {
         return BotMessages.WELCOME_MENU;
     }
 
-    private String handleMenuPrincipal(WhatsappSession session, String text) {
+    private String handleMenuPrincipal(WhatsappSession session, String text, boolean sendToWhatsapp) {
         if (text == null || text.isBlank()) {
             return BotMessages.WELCOME_MENU;
         }
@@ -413,9 +423,15 @@ public class ChatBotService {
                 yield BotMessages.askProblemDescription(session.getAttendanceSubject());
             }
             case "2" -> {
+                String message = "Interesse em consultoria, mentoria e cursos";
                 session.setAttendanceSubject("Consultoria, mentoria e cursos");
-                session.setCurrentState(DESCRICAO_ATENDIMENTO);
-                yield BotMessages.askProblemDescription(session.getAttendanceSubject());
+                prepareHumanAttendance(session, message);
+                if (sendToWhatsapp) {
+                    notificarGerente(session, message);
+                } else {
+                    publishHumanAttendanceRequested(session, message, false, false);
+                }
+                yield null;
             }
             case "3" -> {
                 session.setAttendanceSubject("Compras em atacado");
@@ -431,10 +447,8 @@ public class ChatBotService {
 
     private String handleAssuntoAtendimento(WhatsappSession session, String text) {
         return handleOpcaoComSubject(session, text, Map.of(
-                "1", "Mentoria",
-                "2", "Manutenção em máquina",
-                "3", "Dúvida sobre catálogo, produto ou máquina",
-                "4", "Outro assunto"
+                "1", "Dúvida sobre produtos/impressoras",
+                "2", "Outro assunto"
         ), BotMessages.ATTENDANCE_SUBJECT_MENU);
     }
 
@@ -443,6 +457,21 @@ public class ChatBotService {
                 "1", "Quero receber um orçamento",
                 "2", "Tenho dúvidas antes de fechar"
         ), BotMessages.askAtacado("Compras em atacado"));
+    }
+
+    private void prepareHumanAttendance(WhatsappSession session, String message) {
+        session.setHumanAssigned(true);
+        session.setCurrentState(ATENDIMENTO_HUMANO);
+        session.setStatus(ChatStatus.PENDING);
+        session.setHumanAssingnedAt(Instant.now());
+        session.setLastMessage(message);
+        session.setResolvedBy("HUMANO");
+
+        messageLog.logEvent(
+                session.getWhatsappId(),
+                "Atendimento humano solicitado — Assunto: " + session.getAttendanceSubject()
+        );
+        sessionStore.save(session);
     }
 
     private String handleDescricaoAtendimento(
@@ -454,26 +483,7 @@ public class ChatBotService {
             return BotMessages.askProblemDescription(session.getAttendanceSubject());
         }
 
-        session.setHumanAssigned(true);
-        session.setCurrentState(ATENDIMENTO_HUMANO);
-        session.setStatus(ChatStatus.PENDING);
-        session.setHumanAssingnedAt(Instant.now());
-        session.setLastMessage(text);
-        session.setResolvedBy("HUMANO");
-
-        messageLog.logEvent(session.getWhatsappId(), "Atendimento humano solicitado — Assunto: " + session.getAttendanceSubject());
-
-        /*
-         * notificarGerente envia WAITING_ATTENDANT_WITH_LINK ao cliente
-         * e a notificação ao gerente em paralelo via StructuredTaskScope.
-         * Retornamos null para não duplicar o envio em sendResponseClient.
-         */
-        /*
-         * Salva antes dos envios.
-         * Se outro webhook chegar enquanto as mensagens estão sendo enviadas,
-         * o bot já saberá que a conversa está em atendimento humano.
-        */
-        sessionStore.save(session);
+        prepareHumanAttendance(session, text);
 
         if (sendToWhatsapp) {
             notificarGerente(session, text);

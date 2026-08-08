@@ -37,9 +37,13 @@ public record UpdateProductDTO(
 
         String typePersonalizado,
 
-        ProductStatus status,
+        String marca,
 
-        String marca
+        Integer peso,
+
+        BigDecimal diametro,
+
+        ProductStatus status
 ) {
 
     public UpdateProductCommand toCommand() {
@@ -53,6 +57,8 @@ public record UpdateProductDTO(
                 type,
                 typePersonalizado,
                 marca,
+                peso,
+                diametro,
                 status
         );
     }

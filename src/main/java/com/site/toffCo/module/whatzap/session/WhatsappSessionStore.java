@@ -275,14 +275,16 @@ public class WhatsappSessionStore {
      * evento sem preencher key.id(); nesse caso usamos cliente + texto + janela
      * de tempo para não responder duas vezes.
      *
+     * Quando o webhook possui ID, o próprio ID é a identidade confiável da
+     * mensagem. Não aplicamos fingerprint nesse caso, pois duas mensagens
+     * intencionais podem ter exatamente o mesmo texto (por exemplo, "4").
+     *
      * Usa janela de 2 minutos (checando bucket atual + anterior) para cobrir
      * retries da Evolution que podem chegar com 30-60s de atraso.
      */
     public boolean markMessageAsProcessed(String messageId, String whatsappId, String messageText) {
         if (messageId != null && !messageId.isBlank()) {
-            if (!markMessageAsProcessed(messageId)) {
-                return false;
-            }
+            return markMessageAsProcessed(messageId);
         }
 
         String normalized = (whatsappId == null ? "" : whatsappId.trim()) + "|" +

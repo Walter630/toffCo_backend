@@ -8,26 +8,25 @@ public class BotMessages {
             "FILAMENTOS", new String[]{"filamentos", "Filamentos"},
             "PRODUTOS", new String[]{"produtos", "Produtos"},
             "ACESSORIOS", new String[]{"acessorios", "Acessórios"},
-            "IMPRESSORAS", new String[]{"impressoras", "Impressoras 3D"}
+            "IMPRESSORAS", new String[]{"impressoras", "Impressoras 3D"},
+            "MAQUINAS", new String[]{"maquinas", "Máquinas"}
     );
 
     public static final String WELCOME_MENU =
             "Bem-vindo (a) á *Toff*!\n\n" +
             "Sou assistente virtual. Como posso ajudar?\n\n" +
              "*Se o seu interesse é preço, disponibilidade de estoque e marcas que trabalhamos, acesse o site abaixo* \n" + "https://toffbr.com.br/catalogo \n\n" +
-             "Agora se você não quer nada relacionado acima, me diz abaixo o que você busca: \n" +
+             "Agora se você não quer nada relacionado acima, me diz abaixo o que você busca: \n\n" +
             "1️⃣ Manutenção e revisão em impressoras\n" +
             "2️⃣ Consultoria, mentoria e cursos\n" +
             "3️⃣ Compras em Atacado\n" +
-            "4️⃣ Dúvidas/atendende\n\n" +
+            "4️⃣ Dúvidas/atendimento\n\n" +
             "Digite o número da opção.";
 
     public static final String ATTENDANCE_SUBJECT_MENU =
             "Qual assunto? \n\n" +
-            "1️⃣ Mentoria\n" +
-            "2️⃣ Manutenção\n" +
-            "3️⃣ Dúvida sobre produto/máquina\n" +
-            "4️⃣ Outro assunto\n" +
+            "1️⃣ Dúvida sobre produtos/impressoras\n" +
+            "2️⃣ Outro assunto\n\n" +
             "0️⃣ Voltar ao menu";
 
     public static String askProblemDescription(String subject) {
@@ -44,17 +43,12 @@ public class BotMessages {
                 "0️⃣ Voltar ao menu";
     }
 
-    public static final String HUMAN_ATTENDANCE =
-            "Certo! Seu atendimento foi encaminhado.\n\n" +
-            "Nossa equipe responderá por aqui.";
-
     public static final String BACK_TO_MENU = "Voltando ao menu. 🔙\n\n" + WELCOME_MENU;
 
     public static final String INVALID_OPTION = "Opção inválida. Digite um número do menu.";
 
     public static final String SYSTEM_FAILURE =
-            "Tivemos uma instabilidade momentânea. Um atendente foi acionado.\n\n" +
-            "Você também pode consultar nossos produtos:\n" +
+            "Oiii! Tivemos uma instabilidade momentânea. Enquanto isso, dê uma olhada em nosso site; lá estão todos os produtos disponíveis:\n\n" +
             "https://toffbr.com.br/catalogo";
 
     public static String getCatalogLink(String productName) {
@@ -86,5 +80,5 @@ public class BotMessages {
     }
 
     public static final String WAITING_ATTENDANT_WITH_LINK =
-            "Atendimento encaminhado. Nossa equipe responderá por aqui.\n\n";
+            "Maravilha, o seu atendimento foi encaminhado e nossa equipe te responderá em breve!\n\n";
 }

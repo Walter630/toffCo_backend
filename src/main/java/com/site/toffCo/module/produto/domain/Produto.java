@@ -26,7 +26,7 @@ public class Produto {
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
     @Column(nullable = false, precision = 19, scale = 2)
@@ -46,6 +46,9 @@ public class Produto {
 
     @Column(nullable = false)
     private String marca;
+
+    private Integer peso;
+    private BigDecimal diametro;
 
     @Column(unique = true)
     private String codigoBarras;
