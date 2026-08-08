@@ -7,6 +7,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
@@ -14,6 +15,7 @@ public record ProdutoRequestDTO(
         @NotBlank(message = "Nome is obrigatory")
         String name,
         @NotBlank(message = "Description")
+        @Size(max = 10000, message = "Descrição deve ter no máximo 2000 caracteres")
         String description,
         @NotNull(message = "Preço é obrigatório")
         @DecimalMin(value = "0.01", message = "Preço deve ser maior que zero")
