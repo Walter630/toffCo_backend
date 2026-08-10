@@ -18,8 +18,7 @@ services:
         condition: service_started
       redis:
         condition: service_healthy
-      whatsapp-bridge:
-        condition: service_healthy
+      # O bridge é opcional em runtime; uma desconexão não pode impedir o app de subir.
     environment:
       - DB_URL=jdbc:postgresql://postgres:5432/toffco_db
       - RABBITMQ_HOST=rabbitmq

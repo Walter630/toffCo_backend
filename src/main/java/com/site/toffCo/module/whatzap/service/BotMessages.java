@@ -35,7 +35,7 @@ public class BotMessages {
     }
 
     public static String askAtacado(String subject) {
-        return "Assunto: *" + subject + "*.\n\n" + "Nosso atacado é a partir de 30kg de filamentos, podendo variar entre cores, marcas e tipos.\n" +
+        return "Assunto: *" + subject + "*.\n\n" + "Nosso atacado é a partir de 30kg de filamentos, podendo variar entre cores e tipos.\n" +
                 "Caso queira dar sequência, como prefere seguir?  \n\n" +
                 "1️⃣ Quero receber um orçamento \n" +
                 "2️⃣ Tenho dúvidas antes de fechar \n\n" +
