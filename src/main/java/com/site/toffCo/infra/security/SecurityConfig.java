@@ -74,7 +74,8 @@ public class SecurityConfig {
                                 "/api/bot/dashboard",
                                 "/api/bot/dashboard/**",
                                 "/api/webhook/whatsapp/blocklist/**",
-                                "/api/webhook/whatsapp/seen-lids"
+                                "/api/webhook/whatsapp/seen-lids",
+                                "/api/webhook/meta/whatsapp"
                         ).permitAll()
 
                         .requestMatchers(HttpMethod.POST,

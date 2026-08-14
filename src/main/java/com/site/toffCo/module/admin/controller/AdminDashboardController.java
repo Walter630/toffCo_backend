@@ -36,8 +36,8 @@ public class AdminDashboardController {
     // ─── GET /api/admin/carrinhos ─────────────────────────────────
     // Lista todos os carrinhos com pelo menos 1 item
     @GetMapping("/carrinhos")
-    public ResponseEntity<List<AdminCarrinhoDTO>> getCarrinhos() {
-        return ResponseEntity.ok(service.getCarrinhosAtivos());
+    public ResponseEntity<Page<AdminCarrinhoDTO>> getCarrinhos(Pageable pageable) {
+        return ResponseEntity.ok(service.getCarrinhosAtivos(pageable));
     }
 
     // ─── GET /api/admin/pedidos ───────────────────────────────────

@@ -65,6 +65,9 @@ public class Produto {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    @Version
+    private Long version;
+
     @Column(name = "odoo_product-id", unique = true)
     private Long odooProductId;
 

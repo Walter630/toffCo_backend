@@ -96,13 +96,21 @@ evolution:
       open-duration: ${EVOLUTION_API_CIRCUIT_OPEN_DURATION:PT30S}
 
 whatsapp:
-  # ─── Bridge (Baileys direto) ────────────────────────────────
-  # Substitui a Evolution API. O bridge roda como container Node.js
-  # e se comunica direto com o WhatsApp via WebSocket.
+  # Transporte ativo: bridge (legado/Baileys) ou meta (Cloud API oficial).
+  # A Cloud API só é ativada quando WHATSAPP_META_ENABLED=true.
   bridge:
     url: ${WHATSAPP_BRIDGE_URL:http://localhost:3100}
     secret: ${WHATSAPP_BRIDGE_SECRET:troque-por-um-segredo-forte}
     read-timeout: ${WHATSAPP_BRIDGE_READ_TIMEOUT:PT8S}
+  meta:
+    enabled: ${WHATSAPP_META_ENABLED:false}
+    graph-url: ${META_GRAPH_URL:https://graph.facebook.com}
+    graph-version: ${META_GRAPH_VERSION:v23.0}
+    phone-number-id: ${META_PHONE_NUMBER_ID:}
+    access-token: ${META_ACCESS_TOKEN:}
+    verify-token: ${META_VERIFY_TOKEN:}
+    app-secret: ${META_APP_SECRET:}
+    read-timeout: ${META_READ_TIMEOUT:PT8S}
   simulation-enabled: ${WHATSAPP_SIMULATION_ENABLED:true}
   session:
     ttl: ${WHATSAPP_SESSION_TTL:PT24H}

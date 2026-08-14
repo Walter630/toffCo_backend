@@ -32,6 +32,7 @@ public class WhatzapService {
 
     private final RestClient restClient;
     private final RestClient presenceClient;
+    private final MetaWhatsappClient metaWhatsappClient;
     private final WhatsappCircuitBreaker circuitBreaker;
     private final WhatsappMonitoringService monitoring;
     private final N8nAutomationService n8nAutomationService;
@@ -42,12 +43,15 @@ public class WhatzapService {
             @Value("${whatsapp.bridge.secret:}") String bridgeSecret,
             @Value("${whatsapp.bridge.read-timeout:PT8S}") Duration readTimeout,
             @Value("${n8n.review-mode:false}") boolean n8nReviewMode,
+            MetaWhatsappClient metaWhatsappClient,
             WhatsappCircuitBreaker circuitBreaker,
             WhatsappMonitoringService monitoring,
             N8nAutomationService n8nAutomationService
     ) {
-        log.info("WhatzapService iniciando - bridge={}", bridgeUrl);
+        log.info("WhatzapService iniciando - provider={}",
+                metaWhatsappClient.enabled() ? "meta-cloud-api" : "baileys-bridge");
 
+        this.metaWhatsappClient = metaWhatsappClient;
         this.circuitBreaker = circuitBreaker;
         this.monitoring = monitoring;
         this.n8nAutomationService = n8nAutomationService;
@@ -98,19 +102,26 @@ public class WhatzapService {
         long startedAt = monitoring.startTimer();
 
         try {
-            // O bridge espera: { number, text, delay }
-            // SendMessageRequest já tem esses campos — manda direto
-            String responseBody = restClient.post()
-                    .uri("/send-message")
-                    .body(Map.of(
-                            "number", request.number(),
-                            "text", request.text(),
-                            "delay", request.delay()
-                    ))
-                    .retrieve()
-                    .body(String.class);
+            String responseBody;
+            if (metaWhatsappClient.enabled()) {
+                responseBody = metaWhatsappClient.sendText(
+                        request.number(),
+                        request.text()
+                );
+            } else {
+                // O bridge espera: { number, text, delay }
+                responseBody = restClient.post()
+                        .uri("/send-message")
+                        .body(Map.of(
+                                "number", request.number(),
+                                "text", request.text(),
+                                "delay", request.delay()
+                        ))
+                        .retrieve()
+                        .body(String.class);
+            }
 
-            log.debug("Bridge respondeu para {}: {}", request.number(), responseBody);
+            log.debug("Provedor WhatsApp respondeu para {}: {}", request.number(), responseBody);
             circuitBreaker.recordSuccess();
             monitoring.recordSuccess(startedAt);
             return true;
@@ -120,21 +131,20 @@ public class WhatzapService {
 
             int status = exception.getStatusCode().value();
 
-            // 503 = bridge desconectado do WhatsApp (não é falha permanente)
             if (status == 503) {
-                log.warn("Bridge desconectado do WhatsApp ao enviar para {}", request.number());
+                log.warn("Provedor WhatsApp indisponível ao enviar para {}", request.number());
             } else {
-                log.error("Bridge recusou mensagem para {}: status={}, body={}",
+                log.error("Provedor WhatsApp recusou mensagem para {}: status={}, body={}",
                         request.number(), status, exception.getResponseBodyAsString());
             }
 
             publishAutomationEvent("WHATSAPP_SEND_FAILURE", eventWindowId("send-failure:" + request.number()),
-                    Map.of("message", "Bridge retornou HTTP " + status));
+                    Map.of("message", "Provedor WhatsApp retornou HTTP " + status));
             return false;
         } catch (Exception exception) {
             circuitBreaker.recordFailure();
             monitoring.recordFailure(startedAt);
-            log.error("Falha de rede ao contactar WhatsApp Bridge para {}", request.number(), exception);
+            log.error("Falha de rede ao contactar provedor WhatsApp para {}", request.number(), exception);
             publishAutomationEvent("WHATSAPP_SEND_FAILURE", eventWindowId("send-failure:" + request.number()),
                     Map.of("message", "Falha de rede: " + exception.getClass().getSimpleName()));
             return false;
@@ -179,7 +189,7 @@ public class WhatzapService {
      * Agora chama POST /send-presence no bridge.
      */
     public void sendTyping(String number) {
-        if (number == null || number.isBlank()) {
+        if (number == null || number.isBlank() || metaWhatsappClient.enabled()) {
             return;
         }
 

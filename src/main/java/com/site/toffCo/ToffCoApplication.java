@@ -1,6 +1,7 @@
 package com.site.toffCo;
 
 import com.site.toffCo.infra.config.EvolutionApiProperties;
+import com.site.toffCo.infra.config.MetaWhatsappProperties;
 import com.site.toffCo.infra.config.WhatsappProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -11,7 +12,11 @@ import org.springframework.validation.annotation.Validated;
 
 @SpringBootApplication
 @EnableJpaRepositories(basePackages = "com.site.toffCo")
-@EnableConfigurationProperties({EvolutionApiProperties.class, WhatsappProperties.class})
+@EnableConfigurationProperties({
+        EvolutionApiProperties.class,
+        MetaWhatsappProperties.class,
+        WhatsappProperties.class
+})
 @EnableScheduling
 @Validated
 public class ToffCoApplication {

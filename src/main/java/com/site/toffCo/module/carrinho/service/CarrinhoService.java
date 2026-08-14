@@ -3,7 +3,6 @@ package com.site.toffCo.module.carrinho.service;
 import com.site.toffCo.infra.exception.carrinho.CarNotFound;
 import com.site.toffCo.infra.exception.item.ItemNotFound;
 import com.site.toffCo.infra.exception.item.QuantidadInvalid;
-import com.site.toffCo.module.produto.domain.exception.ProductNotFound;
 import com.site.toffCo.infra.utils.AuthUtil;
 import com.site.toffCo.module.carrinho.dto.CarrinhoRequestDTO;
 import com.site.toffCo.module.carrinho.dto.CarrinhoResponseDTO;
@@ -12,12 +11,14 @@ import com.site.toffCo.module.carrinho.mapper.CarrinhoMapper;
 import com.site.toffCo.module.carrinho.repository.CarrinhoRepository;
 import com.site.toffCo.module.itemcarrinho.entity.ItemCarrinho;
 import com.site.toffCo.module.produto.domain.Produto;
+import com.site.toffCo.module.produto.domain.exception.ProductNotFound;
 import com.site.toffCo.module.produto.infrastructure.persistence.ProdutoRepository;
 import com.site.toffCo.module.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,20 +37,33 @@ public class CarrinhoService {
     private final CarrinhoMapper mapper;
     private final ProdutoRepository produtoRepository;
     private final AuthUtil authUtil;
+    private final CarrinhoCreator carrinhoCreator;
 
     // ============================== CREATE ==============================
-
+    //ele pega o carrinho do usuario logado
     @Transactional
     public Carrinho getOuCreateCar() {
         User user = authUtil.getUserLogado();
 
         return repository.findByUser_Id(user.getId())
-                .orElseGet(() -> {
-                    Carrinho carrinho = new Carrinho();
-                    carrinho.setUser(user);
+                .orElseGet(() ->
+                    criarOuBuscarDepoisDaCorrida(user));
+    }
 
-                    return repository.save(carrinho);
-                });
+    //Cria o carrinho e caso esteja com erro ou nao tenha criado ele mostra
+    private Carrinho criarOuBuscarDepoisDaCorrida(User user) {
+        try {
+            return carrinhoCreator.criar(user);
+        } catch (DataIntegrityViolationException ex) {
+            log.debug(
+                    "Outro processo criou o carrinho do usuario: {}",
+                    user.getId()
+            );
+
+            return repository.findByUser_Id(user.getId())
+                    .orElseThrow(() ->
+                            new CarNotFound("Car not found"));
+        }
     }
 
     // ============================== FIND CAR ==============================
@@ -61,14 +75,16 @@ public class CarrinhoService {
     )
     public CarrinhoResponseDTO findByCar() {
         User user = authUtil.getUserLogado();
-
-        Carrinho carrinho = repository.findByUser_Id(user.getId())
+        // isso ajuda a usar o lazy sem fazer consultas desnecessarias no banco
+        Carrinho carrinho = repository.findCarrinhoCompletoUserById(user.getId())
                 .orElseThrow(() ->
                         new CarNotFound("Carrinho não encontrado")
                 );
 
         return mapper.toDto(carrinho);
     }
+
+
 
     // ============================== ADD ITEM ==============================
 
@@ -115,26 +131,6 @@ public class CarrinhoService {
 
         Carrinho carrinho = getOuCreateCar();
 
-        ItemCarrinho item = carrinho.getItens()
-                .stream()
-                .filter(existingItem ->
-                        existingItem.getProduto()
-                                .getId()
-                                .equals(produtoId)
-                )
-                .findFirst()
-                .orElseGet(() -> {
-                    ItemCarrinho novoItem = new ItemCarrinho();
-
-                    novoItem.setCarrinho(carrinho);
-                    novoItem.setProduto(produto);
-                    novoItem.setQuantidade(0);
-                    novoItem.setPrice(produto.getPrice());
-
-                    carrinho.getItens().add(novoItem);
-
-                    return novoItem;
-                });
 
         int quantidadeInteira;
 
@@ -146,9 +142,7 @@ public class CarrinhoService {
             );
         }
 
-        item.setQuantidade(
-                item.getQuantidade() + quantidadeInteira
-        );
+        ItemCarrinho item = carrinho.adicionarOuIncrementarItem(produto, quantidadeInteira);
 
         item.setPrice(produto.getPrice());
 
@@ -207,7 +201,7 @@ public class CarrinhoService {
 
         produtoRepository.save(produto);
 
-        carrinho.getItens().remove(itemParaRemover);
+        carrinho.removerItemCarrinho(itemParaRemover);
 
         recalcularValorTotal(carrinho);
 
@@ -375,12 +369,7 @@ public class CarrinhoService {
             Carrinho carrinho,
             ItemCarrinho item
     ) {
-        Produto produto = produtoRepository.findByIdForUpdate(
-                        item.getProduto().getId()
-                )
-                .orElseThrow(() ->
-                        new ProductNotFound("Produto não encontrado")
-                );
+        Produto produto = findForUpdate(item);
 
         BigDecimal quantidadeDevolvida =
                 BigDecimal.valueOf(item.getQuantidade());
@@ -401,5 +390,12 @@ public class CarrinhoService {
                 quantidadeDevolvida,
                 produto.getEstoque()
         );
+    }
+
+    private Produto findForUpdate(ItemCarrinho item) {
+        return produtoRepository.findByIdForUpdate(
+                item.getProduto().getId()
+        )
+                .orElseThrow(() -> new ProductNotFound("Product not found"));
     }
 }

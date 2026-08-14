@@ -37,6 +37,9 @@ public class BlocklistSyncService {
     @Value("${whatsapp.bridge.secret:}")
     private String bridgeSecret;
 
+    @Value("${whatsapp.meta.enabled:false}")
+    private boolean metaEnabled;
+
     // Guarda os LIDs que já foram bloqueados para evitar logs repetitivos
     private final Set<String> knownBlockedLids = new HashSet<>();
 
@@ -73,6 +76,11 @@ public class BlocklistSyncService {
     @EventListener(ApplicationReadyEvent.class)
     @Async("whatsappBotExecutor")
     public void syncBlocklistToRedis() {
+        if (metaEnabled) {
+            log.info("Cloud API ativa: sincronização de LIDs do bridge desativada");
+            return;
+        }
+
         List<String> blockedNumbers = whatsappProperties.blockedNumbers();
 
         if (blockedNumbers == null || blockedNumbers.isEmpty()) {
@@ -107,6 +115,10 @@ public class BlocklistSyncService {
      */
     @Scheduled(fixedDelay = 120_000, initialDelay = 60_000) // 2 min, começa após 1 min
     public void periodicLidSync() {
+        if (metaEnabled) {
+            return;
+        }
+
         List<String> blockedNumbers = whatsappProperties.blockedNumbers();
         if (blockedNumbers == null || blockedNumbers.isEmpty()) {
             return;

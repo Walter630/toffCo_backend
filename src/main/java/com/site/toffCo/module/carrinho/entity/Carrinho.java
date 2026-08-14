@@ -1,6 +1,7 @@
 package com.site.toffCo.module.carrinho.entity;
 
 import com.site.toffCo.module.itemcarrinho.entity.ItemCarrinho;
+import com.site.toffCo.module.produto.domain.Produto;
 import com.site.toffCo.module.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -31,7 +32,7 @@ public class Carrinho {
     @Column(precision =  19, scale = 2)
     private BigDecimal valorTotal;
 
-    @OneToMany(mappedBy = "carrinho", cascade = CascadeType.ALL, orphanRemoval = true, fetch =  FetchType.EAGER)
+    @OneToMany(mappedBy = "carrinho", cascade = CascadeType.ALL, orphanRemoval = true, fetch =  FetchType.LAZY)
     private List<ItemCarrinho> itens = new ArrayList<>();
     @CreationTimestamp
     private LocalDateTime createdAt;
@@ -40,4 +41,34 @@ public class Carrinho {
 
     @Version
     private Long version; // O Hibernate usa isso para controle de concorrência
+
+    public ItemCarrinho adicionarOuIncrementarItem(Produto produto, int quantidade) {
+        ItemCarrinho itemCarrinho = itens.stream()
+                .filter(i -> i.getProduto()
+                        .getId()
+                        .equals(produto.getId())
+                )
+                .findFirst()
+                .orElse(null);
+        if (itemCarrinho != null) {
+            itemCarrinho.setQuantidade(
+                    itemCarrinho.getQuantidade() + quantidade
+            );
+            return itemCarrinho;
+        }
+        ItemCarrinho novoItem = new ItemCarrinho();
+        novoItem.setCarrinho(this);
+        novoItem.setProduto(produto);
+        novoItem.setQuantidade(quantidade);
+        novoItem.setPrice(produto.getPrice());
+
+        itens.add(novoItem);
+
+        return novoItem;
+    }
+
+    public ItemCarrinho removerItemCarrinho(ItemCarrinho itemCarrinho) {
+        itens.remove(itemCarrinho);
+        return itemCarrinho;
+    }
 }

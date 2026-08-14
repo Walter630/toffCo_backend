@@ -52,11 +52,10 @@ public class AdminDashboardService {
      * Útil para o admin enxergar quem está "quase comprando"
      * e tomar ações como enviar um cupom de recuperação.
      */
-    public List<AdminCarrinhoDTO> getCarrinhosAtivos() {
-        return carrinhoRepository.findCarrinhosComItens()
-                .stream()
-                .map(AdminCarrinhoDTO::from)
-                .toList();
+    public Page<AdminCarrinhoDTO> getCarrinhosAtivos(Pageable pageable) {
+        return carrinhoRepository
+                .findByCarrinhosComItem(pageable)
+                .map(AdminCarrinhoDTO::from);
     }
 
     // ─── PEDIDOS ──────────────────────────────────────────────────
