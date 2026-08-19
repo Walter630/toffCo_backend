@@ -1,5 +1,6 @@
 package com.site.toffCo.module.carrinho.entity;
 
+import com.site.toffCo.module.carrinho.dto.CarrinhoStatus;
 import com.site.toffCo.module.itemcarrinho.entity.ItemCarrinho;
 import com.site.toffCo.module.produto.domain.Produto;
 import com.site.toffCo.module.user.entity.User;
@@ -34,6 +35,12 @@ public class Carrinho {
 
     @OneToMany(mappedBy = "carrinho", cascade = CascadeType.ALL, orphanRemoval = true, fetch =  FetchType.LAZY)
     private List<ItemCarrinho> itens = new ArrayList<>();
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private CarrinhoStatus carrinhoStatus = CarrinhoStatus.ABERTO;
+
+    private LocalDateTime expiresAt;
     @CreationTimestamp
     private LocalDateTime createdAt;
     @UpdateTimestamp
@@ -67,8 +74,7 @@ public class Carrinho {
         return novoItem;
     }
 
-    public ItemCarrinho removerItemCarrinho(ItemCarrinho itemCarrinho) {
+    public void removerItemCarrinho(ItemCarrinho itemCarrinho) {
         itens.remove(itemCarrinho);
-        return itemCarrinho;
     }
 }

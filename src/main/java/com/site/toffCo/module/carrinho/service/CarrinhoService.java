@@ -6,6 +6,7 @@ import com.site.toffCo.infra.exception.item.QuantidadInvalid;
 import com.site.toffCo.infra.utils.AuthUtil;
 import com.site.toffCo.module.carrinho.dto.CarrinhoRequestDTO;
 import com.site.toffCo.module.carrinho.dto.CarrinhoResponseDTO;
+import com.site.toffCo.module.carrinho.dto.CarrinhoStatus;
 import com.site.toffCo.module.carrinho.entity.Carrinho;
 import com.site.toffCo.module.carrinho.mapper.CarrinhoMapper;
 import com.site.toffCo.module.carrinho.repository.CarrinhoRepository;
@@ -19,10 +20,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -45,7 +49,7 @@ public class CarrinhoService {
     public Carrinho getOuCreateCar() {
         User user = authUtil.getUserLogado();
 
-        return repository.findByUser_Id(user.getId())
+        return repository.findCarrinhoCompletoUserById(user.getId())
                 .orElseGet(() ->
                     criarOuBuscarDepoisDaCorrida(user));
     }
@@ -99,6 +103,17 @@ public class CarrinhoService {
     ) {
         validarQuantidade(quantidade);
 
+        // Primeiro verifica o carrinho antes de alterar estoque
+        Carrinho carrinho = getOuCreateCar();
+        if (carrinho.getCarrinhoStatus() == CarrinhoStatus.CONVERTIDO) {
+            // Reseta o carrinho para permitir novas compras
+            carrinho.getItens().clear();
+            carrinho.setValorTotal(BigDecimal.ZERO);
+            carrinho.setCarrinhoStatus(CarrinhoStatus.ABERTO);
+            carrinho.setExpiresAt(null);
+            log.info("Carrinho resetado após conversão em pedido: usuario={}", carrinho.getUser().getId());
+        }
+
         Produto produto = produtoRepository.findByIdForUpdate(produtoId)
                 .orElseThrow(() ->
                         new ProductNotFound("Produto não encontrado")
@@ -129,9 +144,6 @@ public class CarrinhoService {
                 produto.getEstoque()
         );
 
-        Carrinho carrinho = getOuCreateCar();
-
-
         int quantidadeInteira;
 
         try {
@@ -145,9 +157,12 @@ public class CarrinhoService {
         ItemCarrinho item = carrinho.adicionarOuIncrementarItem(produto, quantidadeInteira);
 
         item.setPrice(produto.getPrice());
+        item.setName(produto.getName());
 
         recalcularValorTotal(carrinho);
 
+        carrinho.setCarrinhoStatus(CarrinhoStatus.ABERTO);
+        carrinho.setExpiresAt(LocalDateTime.now().plusMinutes(30));
         Carrinho carrinhoSalvo = repository.save(carrinho);
 
         log.info(
@@ -311,6 +326,7 @@ public class CarrinhoService {
 
         item.setQuantidade(novaQuantidade);
         item.setPrice(produto.getPrice());
+        item.setName(produto.getName());
 
         recalcularValorTotal(carrinho);
 
@@ -326,6 +342,26 @@ public class CarrinhoService {
         );
 
         return mapper.toDto(carrinhoSalvo);
+    }
+
+    @Scheduled(fixedRate = 60000)
+    @Transactional
+    public void liberarCarrinhoExpirados() {
+        List<Carrinho> carrinhos = repository.findByExpiresAtBefore(LocalDateTime.now());
+
+        for (Carrinho carrinho : carrinhos) {
+            for (ItemCarrinho item : carrinho.getItens()) {
+                Produto produto = produtoRepository.findByIdForUpdate(item.getProduto().getId())
+                        .orElseThrow();
+                produto.setEstoque(produto.getEstoque().add(
+                        BigDecimal.valueOf(item.getQuantidade())
+                ));
+            }
+
+            carrinho.getItens().clear();
+            carrinho.setValorTotal(BigDecimal.ZERO);
+            carrinho.setExpiresAt(null);
+        }
     }
 
     // ============================== AUXILIARES ==============================

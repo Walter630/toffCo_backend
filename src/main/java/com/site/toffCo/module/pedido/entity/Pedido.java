@@ -29,6 +29,9 @@ public class Pedido {
     @JoinColumn(name = "user_id")
     private User user;
 
+    @Column(name = "checkout_idempotency_key", nullable = false)
+    private String idempotencyKey;
+
     // ─── VALOR ────────────────────────────────────────────────────
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal total;
@@ -62,4 +65,9 @@ public class Pedido {
 
     @UpdateTimestamp
     private LocalDateTime dataAtualizacao;
+
+    // Version ele serve para o hibernate detectar conflitos no mesmo pedido
+    @Version
+    private Long version;
+
 }

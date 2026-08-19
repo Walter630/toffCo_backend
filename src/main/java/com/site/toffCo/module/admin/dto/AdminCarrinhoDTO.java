@@ -48,18 +48,15 @@ public record AdminCarrinhoDTO(
 
         var itensDTO = itensCarrinho.stream()
                 .map(item -> {
-                    var produto = item.getProduto();
+                    // Usa snapshot do item; fallback para produto se disponível
+                    String nomeProduto = item.getName() != null
+                            ? item.getName()
+                            : (item.getProduto() != null
+                                    ? valueOrDefault(item.getProduto().getName())
+                                    : "Produto não identificado");
 
-                    String nomeProduto = produto != null
-                            ? valueOrDefault(produto.getName())
-                            : "Produto não identificado";
-
-                    /*
-                     * Aqui será retornado "Elegoo", "Creality",
-                     * "Toff Brasil" ou qualquer marca do produto.
-                     */
-                    String marcaProduto = produto != null
-                            ? valueOrDefault(produto.getMarca())
+                    String marcaProduto = item.getProduto() != null
+                            ? valueOrDefault(item.getProduto().getMarca())
                             : "—";
 
                     BigDecimal precoUnitario = item.getPrice() != null

@@ -80,7 +80,7 @@ public class AdminDashboardController {
     public ResponseEntity<Page<AdminUserDTO>> getUsers(
             @PageableDefault(
             size = 15,
-            sort = "name",
+            sort = "username",
             direction = Sort.Direction.ASC
     )
             Pageable pageable

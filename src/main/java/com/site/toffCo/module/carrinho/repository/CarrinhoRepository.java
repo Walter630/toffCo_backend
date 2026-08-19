@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,6 +26,8 @@ public interface CarrinhoRepository extends JpaRepository<Carrinho, UUID> {
         where c.user.id = :userId
         """)
     Optional<Carrinho> findCarrinhoCompletoUserById(UUID userId);
+
+    List<Carrinho> findByExpiresAtBefore(LocalDateTime expiresAt);
 
     // Admin: carrinhos com pelo menos 1 item (abandonados ou ativos)
     @Query("SELECT c FROM Carrinho c WHERE SIZE(c.itens) > 0 ORDER BY c.updatedAt DESC")

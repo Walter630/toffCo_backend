@@ -60,22 +60,14 @@ public class SecurityConfig {
 
                         .requestMatchers(HttpMethod.POST,
                                 "/api/pagamentoitems/FormaPayment"
-                        ).permitAll()
+                        ).authenticated()
 
                         .requestMatchers(
-                                "/bot-test.html",
-                                "/api/webhook/whatsapp/receive",
-                                "/api/webhook/whatsapp/simulate",
-                                "/api/webhook/set/ToffCoBot",
-                                "/webhook/whatsapp/**",
                                 "/instance/create",
                                 "/api/webhooks/odoo/**",
                                 "/api/health/**",
                                 "/api/bot/dashboard",
-                                "/api/bot/dashboard/**",
-                                "/api/webhook/whatsapp/blocklist/**",
-                                "/api/webhook/whatsapp/seen-lids",
-                                "/api/webhook/meta/whatsapp"
+                                "/api/bot/dashboard/**"
                         ).permitAll()
 
                         .requestMatchers(HttpMethod.POST,
@@ -133,7 +125,7 @@ public class SecurityConfig {
                 "http://127.0.0.1:5173",
                 "http://127.0.0.1:4173"
         ));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Cache-Control"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

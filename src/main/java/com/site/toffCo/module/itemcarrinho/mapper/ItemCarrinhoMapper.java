@@ -8,7 +8,7 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public abstract class ItemCarrinhoMapper {
     @Mapping(source = "produto.id", target = "produtoId")
-    @Mapping(source = "produto.name", target = "name")
+    @Mapping(source = "name", target = "name")
     @Mapping(source = "price", target = "price")
     public abstract ItemCarrinhoResponseDTO toDto(ItemCarrinho entity);
 }

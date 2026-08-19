@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -23,6 +24,10 @@ public interface PedidoRepository extends JpaRepository<Pedido, UUID> {
 
     // Admin: pedidos de um usuário específico
     List<Pedido> findByUserIdOrderByDataCriacaoDesc(UUID userId);
+
+    Optional<Pedido> findByIdAndUserId(UUID pedidoId, UUID userId);
+
+    Optional<Pedido> findByUserIdAndIdempotencyKey(UUID userId, String idempotencyKey);
 
     // Admin: total de pedidos por status (para o card de resumo)
     long countByStatus(PedidoStatus status);

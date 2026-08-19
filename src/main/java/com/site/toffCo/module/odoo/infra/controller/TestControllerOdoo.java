@@ -16,9 +16,10 @@ public class TestControllerOdoo {
 
     @GetMapping("/checkout")
     public ResponseEntity<String> checkout(
-            @RequestParam UUID userId
+            @RequestParam UUID userId,
+            @RequestHeader("idempotencyKey") String idempotencyKey
     ) {
-        pedidoService.realizarCheckout(userId);
+        pedidoService.realizarCheckout(userId, idempotencyKey);
 
         return ResponseEntity.ok(
                 "Fluxo disparado com sucesso!!"

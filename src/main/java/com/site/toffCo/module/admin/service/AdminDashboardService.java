@@ -1,21 +1,22 @@
 package com.site.toffCo.module.admin.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.site.toffCo.infra.outbox.OutboxEvent;
+import com.site.toffCo.infra.outbox.OutboxEventRepository;
 import com.site.toffCo.module.admin.dto.AdminCarrinhoDTO;
 import com.site.toffCo.module.admin.dto.AdminDashboardSummaryDTO;
 import com.site.toffCo.module.admin.dto.AdminPedidoDTO;
 import com.site.toffCo.module.admin.dto.AdminUserDTO;
 import com.site.toffCo.module.carrinho.repository.CarrinhoRepository;
+import com.site.toffCo.module.odoo.dto.OdooInvoiceCreateDTO;
+import com.site.toffCo.module.odoo.dto.OdooInvoiceLineDTO;
 import com.site.toffCo.module.pedido.entity.Pedido;
 import com.site.toffCo.module.pedido.entity.PedidoStatus;
 import com.site.toffCo.module.pedido.repository.PedidoRepository;
-import com.site.toffCo.module.user.dto.UserResponseDTO;
-import com.site.toffCo.module.user.entity.User;
-import com.site.toffCo.module.user.mapper.UserMapper;
 import com.site.toffCo.module.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +33,11 @@ public class AdminDashboardService {
     private final CarrinhoRepository carrinhoRepository;
     private final PedidoRepository pedidoRepository;
     private final UserRepository userRepository;
+    private final OutboxEventRepository outboxEventRepository;
+
+    private ObjectMapper objectMapper() {
+        return new ObjectMapper();
+    }
 
     // ─── RESUMO (cards do topo) ────────────────────────────────────
 
@@ -101,6 +107,9 @@ public class AdminDashboardService {
     /**
      * Admin atualiza o status de um pedido manualmente.
      * Ex: marcar como EM_SEPARACAO, ENVIADO, ENTREGUE, CANCELADO.
+     *
+     * Quando o status muda para EM_SEPARACAO, gera automaticamente
+     * o cupom fiscal (NF-e) no Odoo via Outbox.
      */
     @Transactional
     public AdminPedidoDTO updateStatusPedido(
@@ -124,7 +133,50 @@ public class AdminDashboardService {
 
         pedido.setStatus(novoStatus);
 
+        // Quando gerente confirma o orçamento (EM_SEPARACAO), emite cupom fiscal
+        if (novoStatus == PedidoStatus.EM_SEPARACAO) {
+            gerarCupomFiscalOdoo(pedido);
+        }
+
+        // Força carregamento dos itens e user antes de montar o DTO
+        pedido.getItens().size();
+        if (pedido.getUser() != null) {
+            pedido.getUser().getEmail();
+        }
+
         return AdminPedidoDTO.from(pedido);
+    }
+
+    // ─── Geração de cupom fiscal via Outbox → Odoo ───────────────
+
+    private void gerarCupomFiscalOdoo(Pedido pedido) {
+        try {
+            List<OdooInvoiceLineDTO> linhas = pedido.getItens().stream()
+                    .map(item -> new OdooInvoiceLineDTO(
+                            item.getNomeProduto(),
+                            item.getQuantidade(),
+                            item.getPrecoUnitario()
+                    ))
+                    .toList();
+
+            var dto = new OdooInvoiceCreateDTO(
+                    pedido.getId(),
+                    pedido.getUser().getUsername(),
+                    pedido.getUser().getCpf(),
+                    pedido.getUser().getEmail(),
+                    linhas
+            );
+
+            OutboxEvent evento = new OutboxEvent();
+            evento.setAggregateId(pedido.getId());
+            evento.setTypeEvent("ODOO_INVOICE");
+            evento.setPayload(objectMapper().writeValueAsString(dto));
+            outboxEventRepository.save(evento);
+
+            log.info("Cupom fiscal Odoo agendado na outbox: pedido={}", pedido.getId());
+        } catch (Exception e) {
+            log.error("Erro ao agendar cupom fiscal Odoo: pedido={}", pedido.getId(), e);
+        }
     }
 
     // ─── USUÁRIOS ───────────────────────────────────────────────

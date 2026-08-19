@@ -6,7 +6,6 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -29,21 +28,27 @@ public class EmailService {
                 remetente,
                 to
         );
-        SimpleMailMessage simpleMailMessage = new SimpleMailMessage();
 
-        simpleMailMessage.setTo(to);
-        simpleMailMessage.setFrom(remetente);
-        simpleMailMessage.setSubject("Pedido confirmado!! ");
-        simpleMailMessage.setText("""
-                Olá! Seu pedido foi confirmado.
-                
-                                ID do pedido: %s
-                                Total: R$ %.2f
-                
-                                Obrigado por comprar na ToffCo!
-                """.formatted(pedidoEvent.pedidoId(), pedidoEvent.total()));
-        mailSender.send(simpleMailMessage);
-        log.info("E-mail de pedido enviado para: {}", to);
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+
+            Context context = new Context();
+            context.setVariable("pedidoId", pedidoEvent.pedidoId().toString().substring(0, 8).toUpperCase());
+            context.setVariable("total", String.format("R$ %.2f", pedidoEvent.total()));
+
+            String htmlBody = templateEngine.process("pedido-confirmado", context);
+
+            helper.setTo(to);
+            helper.setFrom(remetente);
+            helper.setSubject("Pedido Confirmado - ToffCo");
+            helper.setText(htmlBody, true);
+
+            mailSender.send(mimeMessage);
+            log.info("E-mail de pedido enviado para: {}", to);
+        } catch (MessagingException e) {
+            log.error("Erro ao enviar e-mail HTML de pedido para: {}", to, e);
+        }
     }
 
     public void sendTemplateEmail(String to, String subject, String template) throws MessagingException {

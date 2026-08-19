@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novo Pedido Pago</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f5; color: #333333;">
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f5; padding: 40px 0;">
+    <tr>
+        <td align="center">
+            <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+
+                <!-- Header -->
+                <tr>
+                    <td style="background-color: #1a1a1a; color: #ffffff; text-align: center; padding: 24px 20px;">
+                        <h1 style="margin: 0; font-size: 22px; letter-spacing: 0.5px; color: #ffffff;">ToffCo - Painel</h1>
+                        <p style="margin: 6px 0 0 0; font-size: 13px; color: #9ca3af;">Notificacao de Venda</p>
+                    </td>
+                </tr>
+
+                <!-- Alert Banner -->
+                <tr>
+                    <td style="background-color: #dcfce7; text-align: center; padding: 16px 20px; border-bottom: 1px solid #bbf7d0;">
+                        <p style="margin: 0; font-size: 16px; font-weight: bold; color: #166534;">Novo pedido pago!</p>
+                    </td>
+                </tr>
+
+                <!-- Order Info -->
+                <tr>
+                    <td style="padding: 28px 30px 10px 30px;">
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                            <!-- Row: Pedido -->
+                            <tr>
+                                <td style="padding: 14px 16px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb; width: 140px;">
+                                    <span style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Pedido</span>
+                                </td>
+                                <td style="padding: 14px 16px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                    <span style="font-size: 14px; color: #1f2937; font-weight: bold; font-family: monospace;" th:text="${pedidoId}">abc-123</span>
+                                </td>
+                            </tr>
+                            <!-- Row: Cliente -->
+                            <tr>
+                                <td style="padding: 14px 16px; border-bottom: 1px solid #e5e7eb; width: 140px;">
+                                    <span style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Cliente</span>
+                                </td>
+                                <td style="padding: 14px 16px; border-bottom: 1px solid #e5e7eb;">
+                                    <span style="font-size: 14px; color: #1f2937;" th:text="${clienteNome}">Fulano</span>
+                                </td>
+                            </tr>
+                            <!-- Row: Email -->
+                            <tr>
+                                <td style="padding: 14px 16px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb; width: 140px;">
+                                    <span style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Email</span>
+                                </td>
+                                <td style="padding: 14px 16px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                    <span style="font-size: 14px; color: #1f2937;" th:text="${clienteEmail}">email@example.com</span>
+                                </td>
+                            </tr>
+                            <!-- Row: Telefone -->
+                            <tr>
+                                <td style="padding: 14px 16px; border-bottom: 1px solid #e5e7eb; width: 140px;">
+                                    <span style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Telefone</span>
+                                </td>
+                                <td style="padding: 14px 16px; border-bottom: 1px solid #e5e7eb;">
+                                    <span style="font-size: 14px; color: #1f2937;" th:text="${clienteTelefone ?: 'Nao informado'}">--</span>
+                                </td>
+                            </tr>
+                            <!-- Row: Forma Pagamento -->
+                            <tr>
+                                <td style="padding: 14px 16px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb; width: 140px;">
+                                    <span style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Pagamento</span>
+                                </td>
+                                <td style="padding: 14px 16px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                    <span style="display: inline-block; padding: 4px 10px; background-color: #dbeafe; color: #1d4ed8; border-radius: 4px; font-size: 12px; font-weight: bold;" th:text="${formaPagamento}">PIX</span>
+                                </td>
+                            </tr>
+                            <!-- Row: Total -->
+                            <tr>
+                                <td style="padding: 16px; width: 140px;">
+                                    <span style="font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Total</span>
+                                </td>
+                                <td style="padding: 16px;">
+                                    <span style="font-size: 20px; color: #16a34a; font-weight: bold;" th:text="${total}">R$ 0,00</span>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+
+                <!-- Items -->
+                <tr th:if="${itens != null and !itens.isEmpty()}">
+                    <td style="padding: 20px 30px;">
+                        <h3 style="font-size: 14px; color: #374151; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 0.5px;">Itens do Pedido</h3>
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden;">
+                            <tr style="background-color: #f3f4f6;">
+                                <td style="padding: 10px 12px; font-size: 11px; color: #6b7280; text-transform: uppercase; border-bottom: 1px solid #e5e7eb;">Produto</td>
+                                <td style="padding: 10px 12px; font-size: 11px; color: #6b7280; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; text-align: center;">Qtd</td>
+                                <td style="padding: 10px 12px; font-size: 11px; color: #6b7280; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; text-align: right;">Subtotal</td>
+                            </tr>
+                            <tr th:each="item : ${itens}">
+                                <td style="padding: 10px 12px; font-size: 13px; color: #1f2937; border-bottom: 1px solid #f3f4f6;" th:text="${item.nome}">Produto X</td>
+                                <td style="padding: 10px 12px; font-size: 13px; color: #1f2937; border-bottom: 1px solid #f3f4f6; text-align: center;" th:text="${item.quantidade}">1</td>
+                                <td style="padding: 10px 12px; font-size: 13px; color: #1f2937; border-bottom: 1px solid #f3f4f6; text-align: right;" th:text="${item.subtotal}">R$ 0,00</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+
+                <!-- Action -->
+                <tr>
+                    <td style="text-align: center; padding: 10px 30px 28px 30px;">
+                        <p style="font-size: 14px; color: #6b7280; margin: 0 0 16px 0;">Acesse o painel administrativo para separar o pedido.</p>
+                    </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                    <td style="background-color: #f3f4f6; text-align: center; padding: 16px; font-size: 11px; color: #9ca3af;">
+                        <p style="margin: 0;">Notificacao automatica - ToffCo Sistema</p>
+                    </td>
+                </tr>
+
+            </table>
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>

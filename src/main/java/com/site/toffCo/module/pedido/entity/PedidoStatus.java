@@ -13,6 +13,7 @@ package com.site.toffCo.module.pedido.entity;
 public enum PedidoStatus {
     AGUARDANDO_PAGAMENTO,
     PAGO,
+    PRONTO,
     EM_SEPARACAO,
     ENVIADO,
     ENTREGUE,
