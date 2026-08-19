@@ -32,11 +32,11 @@ public record PedidoResumoDTO(
         List<ItemDTO> itens = pedido.getItens().stream()
                 .map(item -> new ItemDTO(
                         item.getId(),
-                        item.getProduto().getId(),
-                        item.getProduto().getName(),
+                        item.getProduto() != null ? item.getProduto().getId() : null,
+                        item.getNomeProduto(),
                         item.getQuantidade(),
                         item.getPrecoUnitario(),
-                        item.getPrecoUnitario().multiply(BigDecimal.valueOf(item.getQuantidade()))
+                        item.getSubtotal()
                 ))
                 .toList();
 
