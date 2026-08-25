@@ -10,41 +10,30 @@ import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public record UpdateProductDTO(
-
         @NotBlank(message = "Nome é obrigatório")
         String name,
-
         @NotBlank(message = "Descrição é obrigatória")
-        @Size(max = 10000, message = "Descrição deve ter no máximo 2000 caracteres")
+        @Size(max = 10000, message = "Descrição deve ter no máximo 10000 caracteres")
         String description,
-
         @NotNull(message = "Preço é obrigatório")
-        @DecimalMin(
-                value = "0.01",
-                message = "Preço deve ser maior que zero"
-        )
+        @DecimalMin(value = "0.01", message = "Preço deve ser maior que zero")
         BigDecimal price,
-
         String categoria,
-
         String image,
-
+        List<String> images,
+        boolean featured,
         @NotNull(message = "Estoque é obrigatório")
         @PositiveOrZero(message = "Estoque não pode ser negativo")
         BigDecimal estoque,
-
+        String codigoBarras,
         ProductType type,
-
         String typePersonalizado,
-
         String marca,
-
         Integer peso,
-
         BigDecimal diametro,
-
         ProductStatus status
 ) {
 
@@ -54,6 +43,8 @@ public record UpdateProductDTO(
                 description,
                 price,
                 image,
+                images == null ? List.of() : List.copyOf(images),
+                featured,
                 categoria,
                 estoque,
                 type,
@@ -61,6 +52,7 @@ public record UpdateProductDTO(
                 marca,
                 peso,
                 diametro,
+                codigoBarras,
                 status
         );
     }

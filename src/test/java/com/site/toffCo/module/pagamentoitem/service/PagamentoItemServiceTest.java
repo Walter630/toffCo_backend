@@ -44,6 +44,7 @@ class PagamentoItemServiceTest {
     @Mock private WhatzapService whatzapService;
     @Mock private PagamentoStrategy pixStrategy;
     @Mock private org.thymeleaf.TemplateEngine templateEngine;
+    @Mock private tools.jackson.databind.ObjectMapper objectMapper;
 
     private PagamentoItemService service;
     private User user;
@@ -61,7 +62,8 @@ class PagamentoItemServiceTest {
                 outboxEventRepository,
                 emailService,
                 whatzapService,
-                templateEngine
+                templateEngine,
+                objectMapper
         );
 
         user = new User();
@@ -81,7 +83,7 @@ class PagamentoItemServiceTest {
     @DisplayName("Pagamento aprovado deve alterar status do pedido para PAGO")
     void pagamentoAprovado_deveMarcarPedidoComoPago() {
         when(authUtil.getUserLogado()).thenReturn(user);
-        when(pedidoRepository.findByIdAndUserId(pedido.getId(), user.getId()))
+        when(pedidoRepository.findByIdAndUserIdForUpdate(pedido.getId(), user.getId()))
                 .thenReturn(Optional.of(pedido));
         when(pagamentoItemRepository.findByPedidoIdAndStatus(pedido.getId(), PagamentoStatus.APROVADO))
                 .thenReturn(Optional.empty());
@@ -101,7 +103,7 @@ class PagamentoItemServiceTest {
     @DisplayName("Deve rejeitar pagamento de pedido de outro usuario")
     void pagamento_pedidoDeOutroUsuario_deveRejeitar() {
         when(authUtil.getUserLogado()).thenReturn(user);
-        when(pedidoRepository.findByIdAndUserId(any(), eq(user.getId())))
+        when(pedidoRepository.findByIdAndUserIdForUpdate(any(), eq(user.getId())))
                 .thenReturn(Optional.empty());
 
         var request = new PagamentoRequestDTO("PIX", new BigDecimal("100.00"), UUID.randomUUID());
@@ -114,7 +116,7 @@ class PagamentoItemServiceTest {
     @DisplayName("Deve rejeitar pagamento com valor diferente do pedido")
     void pagamento_valorDiferente_deveRejeitar() {
         when(authUtil.getUserLogado()).thenReturn(user);
-        when(pedidoRepository.findByIdAndUserId(pedido.getId(), user.getId()))
+        when(pedidoRepository.findByIdAndUserIdForUpdate(pedido.getId(), user.getId()))
                 .thenReturn(Optional.of(pedido));
         when(pagamentoItemRepository.findByPedidoIdAndStatus(pedido.getId(), PagamentoStatus.APROVADO))
                 .thenReturn(Optional.empty());
@@ -131,7 +133,7 @@ class PagamentoItemServiceTest {
     void pagamento_pedidoJaPago_deveRejeitar() {
         pedido.setStatus(PedidoStatus.PAGO);
         when(authUtil.getUserLogado()).thenReturn(user);
-        when(pedidoRepository.findByIdAndUserId(pedido.getId(), user.getId()))
+        when(pedidoRepository.findByIdAndUserIdForUpdate(pedido.getId(), user.getId()))
                 .thenReturn(Optional.of(pedido));
 
         var request = new PagamentoRequestDTO("PIX", new BigDecimal("150.00"), pedido.getId());
@@ -145,7 +147,7 @@ class PagamentoItemServiceTest {
     @DisplayName("Deve rejeitar pagamento duplicado aprovado")
     void pagamento_duplicadoAprovado_deveRejeitar() {
         when(authUtil.getUserLogado()).thenReturn(user);
-        when(pedidoRepository.findByIdAndUserId(pedido.getId(), user.getId()))
+        when(pedidoRepository.findByIdAndUserIdForUpdate(pedido.getId(), user.getId()))
                 .thenReturn(Optional.of(pedido));
         when(pagamentoItemRepository.findByPedidoIdAndStatus(pedido.getId(), PagamentoStatus.APROVADO))
                 .thenReturn(Optional.of(new com.site.toffCo.module.pagamentoitem.entity.PagamentoItem()));

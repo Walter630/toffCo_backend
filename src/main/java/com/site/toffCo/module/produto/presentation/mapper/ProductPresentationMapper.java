@@ -6,34 +6,21 @@ import com.site.toffCo.module.produto.domain.Produto;
 import com.site.toffCo.module.produto.presentation.request.ProdutoRequestDTO;
 import com.site.toffCo.module.produto.presentation.response.ProdutoResponseDTO;
 
+import java.util.List;
+
 public class ProductPresentationMapper {
-    public CreateProductCommand toCreateCommand(
-            ProdutoRequestDTO request
-    ) {
-        return new CreateProductCommand(
-                request.name(),
-                request.description(),
-                request.price(),
-                request.image(),
-                request.categoria(),
-                request.estoque(),
-                request.type(),
-                request.typePersonalizado(),
-                request.marca(),
-                request.peso(),
-                request.diametro(),
-                request.status()
-        );
+    public CreateProductCommand toCreateCommand(ProdutoRequestDTO request) {
+        return request.toCommand();
     }
 
-    public UpdateProductCommand toUpdateCommand(
-            ProdutoRequestDTO request
-    ) {
+    public UpdateProductCommand toUpdateCommand(ProdutoRequestDTO request) {
         return new UpdateProductCommand(
                 request.name(),
                 request.description(),
                 request.price(),
                 request.image(),
+                request.images() == null ? List.of() : List.copyOf(request.images()),
+                request.featured(),
                 request.categoria(),
                 request.estoque(),
                 request.type(),
@@ -41,6 +28,7 @@ public class ProductPresentationMapper {
                 request.marca(),
                 request.peso(),
                 request.diametro(),
+                request.codigoBarras(),
                 request.status()
         );
     }
@@ -51,16 +39,20 @@ public class ProductPresentationMapper {
                 produto.getName(),
                 produto.getDescription(),
                 produto.getImage(),
+                produto.getImages(),
+                produto.isFeatured(),
                 produto.getCategoria(),
+                produto.getMarca(),
+                produto.getType(),
+                produto.getTypePersonalizado(),
                 produto.getPrice(),
                 produto.getEstoque(),
-                produto.getType(),
                 produto.getPeso(),
                 produto.getDiametro(),
-                produto.getTypePersonalizado(),
-                produto.getStatus(),
                 produto.getCodigoBarras(),
-                produto.getMarca()
+                produto.getStatus(),
+                produto.getCreatedAt(),
+                produto.getUpdatedAt()
         );
     }
 }

@@ -70,4 +70,14 @@ public class Pedido {
     @Version
     private Long version;
 
+    // Controle persistente da baixa de estoque; evita desconto duplicado em retries.
+    @Column(name = "stock_released", nullable = false)
+    private boolean stockReleased;
+
+    @Column(name = "stock_released_at")
+    private LocalDateTime stockReleasedAt;
+
+    @Column(name = "stock_release_id", unique = true)
+    private UUID stockReleaseId;
+
 }

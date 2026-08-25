@@ -1,6 +1,6 @@
 package com.site.toffCo.module.pagamentoitem.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.site.toffCo.infra.exception.payment.PaymentInvalidForm;
 import com.site.toffCo.infra.exception.payment.PaymentNotFound;
 import com.site.toffCo.infra.outbox.OutboxEvent;
@@ -50,10 +50,11 @@ public class PagamentoItemService {
     private final EmailService emailService;
     private final WhatzapService whatzapService;
     private final org.thymeleaf.TemplateEngine templateEngine;
+    private final ObjectMapper objectMapper;
 
-    private ObjectMapper objectMapper() {
-        return new ObjectMapper();
-    }
+  //  private ObjectMapper objectMapper() {
+      //  return new ObjectMapper();
+    //}
 
     private String normalizarFormaPagamento(String forma) {
         String normalizado = forma.toUpperCase().trim();
@@ -74,7 +75,8 @@ public class PagamentoItemService {
             OutboxEventRepository outboxEventRepository,
             EmailService emailService,
             WhatzapService whatzapService,
-            org.thymeleaf.TemplateEngine templateEngine
+            org.thymeleaf.TemplateEngine templateEngine,
+            ObjectMapper objectMapper
     ) {
         this.pagamentoStrategyMap = strategies.stream()
                 .collect(Collectors.toMap(
@@ -88,6 +90,7 @@ public class PagamentoItemService {
         this.emailService = emailService;
         this.whatzapService = whatzapService;
         this.templateEngine = templateEngine;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -106,7 +109,7 @@ public class PagamentoItemService {
         User user = authUtil.getUserLogado();
 
         Pedido pedido = pedidoRepository
-                .findByIdAndUserId(requestDTO.pedidoId(), user.getId())
+                .findByIdAndUserIdForUpdate(requestDTO.pedidoId(), user.getId())
                 .orElseThrow(() ->
                         new PaymentNotFound("Pedido não encontrado")
                 );
@@ -117,6 +120,11 @@ public class PagamentoItemService {
 
         if (pagamentoItemRepository.findByPedidoIdAndStatus(pedido.getId(), PagamentoStatus.APROVADO).isPresent()) {
             throw new PaymentInvalidForm("Pedido já possui pagamento aprovado");
+        }
+
+        // Bloqueia criação de novo pagamento se já existe um AGUARDANDO (ex: QR PIX já gerado)
+        if (pagamentoItemRepository.findByPedidoIdAndStatus(pedido.getId(), PagamentoStatus.AGUARDANDO).isPresent()) {
+            throw new PaymentInvalidForm("Já existe um pagamento pendente para este pedido");
         }
 
         BigDecimal valorPedido = pedido.getTotal();
@@ -190,12 +198,13 @@ public class PagamentoItemService {
             OutboxEvent evento = new OutboxEvent();
             evento.setAggregateId(pedido.getId());
             evento.setTypeEvent("ODOO_INVOICE");
-            evento.setPayload(objectMapper().writeValueAsString(dto));
+            evento.setPayload(objectMapper.writeValueAsString(dto));
             outboxEventRepository.save(evento);
 
             log.debug("Evento ODOO_INVOICE salvo na outbox: pedido={}", pedido.getId());
         } catch (Exception e) {
             log.error("Erro ao salvar evento Odoo na outbox: pedido={}", pedido.getId(), e);
+            throw new RuntimeException("Falha ao salvar evento Odoo na outbox: " + pedido.getId(), e);
         }
     }
 

@@ -23,6 +23,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import jakarta.servlet.http.HttpServletResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @Configuration
@@ -44,6 +46,14 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, exception) ->
+                                writeSecurityError(response, HttpServletResponse.SC_UNAUTHORIZED,
+                                        "Token ausente ou inválido.", "UNAUTHORIZED"))
+                        .accessDeniedHandler((request, response, exception) ->
+                                writeSecurityError(response, HttpServletResponse.SC_FORBIDDEN,
+                                        "Usuário sem permissão para esta operação.", "FORBIDDEN"))
+                )
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                 .requestMatchers("/uploads/**").permitAll()
@@ -75,9 +85,12 @@ public class SecurityConfig {
                                 ).hasRole("ADMIN")
 
                         .requestMatchers(
-                                "/api/admin/**",
-                                "/api/nota-fiscal/**"
+                                "/api/admin/**"
                         ).hasRole("ADMIN")
+                        .requestMatchers(
+                                "/api/nota-fiscal/**",
+                                "/api/notas-fiscais/**"
+                        ).authenticated()
 
                         .anyRequest().authenticated() // Bloqueia o resto
                 )
@@ -126,10 +139,28 @@ public class SecurityConfig {
                 "http://127.0.0.1:4173"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Cache-Control"));
+        configuration.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "Idempotency-Key",
+                "Cache-Control"
+        ));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration); // Aplica essa regra em todas as rotas
         return source;
+    }
+
+    private void writeSecurityError(
+            HttpServletResponse response,
+            int status,
+            String message,
+            String code
+    ) throws java.io.IOException {
+        response.setStatus(status);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.setContentType("application/json");
+        response.getWriter().write("{\"message\":\"" + message
+                + "\",\"code\":\"" + code + "\",\"details\":{}}");
     }
 }

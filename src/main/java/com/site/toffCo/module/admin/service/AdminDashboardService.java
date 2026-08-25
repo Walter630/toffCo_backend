@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -34,6 +35,16 @@ public class AdminDashboardService {
     private final PedidoRepository pedidoRepository;
     private final UserRepository userRepository;
     private final OutboxEventRepository outboxEventRepository;
+
+    private static final Map<PedidoStatus, List<PedidoStatus>> TRANSICOES_VALIDAS = Map.of(
+            PedidoStatus.AGUARDANDO_PAGAMENTO, List.of(PedidoStatus.PAGO, PedidoStatus.CANCELADO),
+            PedidoStatus.PAGO, List.of(PedidoStatus.EM_SEPARACAO, PedidoStatus.PRONTO, PedidoStatus.ENVIADO, PedidoStatus.ENTREGUE, PedidoStatus.CANCELADO),
+            PedidoStatus.EM_SEPARACAO, List.of(PedidoStatus.PRONTO, PedidoStatus.ENVIADO, PedidoStatus.ENTREGUE, PedidoStatus.CANCELADO),
+            PedidoStatus.PRONTO, List.of(PedidoStatus.ENVIADO, PedidoStatus.ENTREGUE, PedidoStatus.CANCELADO),
+            PedidoStatus.ENVIADO, List.of(PedidoStatus.ENTREGUE, PedidoStatus.CANCELADO),
+            PedidoStatus.ENTREGUE, List.of(),
+            PedidoStatus.CANCELADO, List.of()
+    );
 
     private ObjectMapper objectMapper() {
         return new ObjectMapper();
@@ -124,10 +135,20 @@ public class AdminDashboardService {
                         )
                 );
 
+        PedidoStatus statusAtual = pedido.getStatus();
+        List<PedidoStatus> permitidos = TRANSICOES_VALIDAS.getOrDefault(statusAtual, List.of());
+
+        if (!permitidos.contains(novoStatus)) {
+            throw new IllegalArgumentException(
+                    "Transição inválida: " + statusAtual + " → " + novoStatus
+                            + ". Transições permitidas: " + permitidos
+            );
+        }
+
         log.info(
                 "Admin atualizando pedido {} de {} para {}",
                 pedidoId,
-                pedido.getStatus(),
+                statusAtual,
                 novoStatus
         );
 

@@ -6,9 +6,15 @@ import lombok.Setter;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
-import java.util.Collections;
 
-import static com.site.toffCo.module.produto.infrastructure.persistence.specification.ProductSpec.*;
+import static com.site.toffCo.module.produto.infrastructure.persistence.specification.ProductSpec.findByCategoria;
+import static com.site.toffCo.module.produto.infrastructure.persistence.specification.ProductSpec.findByCodigoBarras;
+import static com.site.toffCo.module.produto.infrastructure.persistence.specification.ProductSpec.findByDescricao;
+import static com.site.toffCo.module.produto.infrastructure.persistence.specification.ProductSpec.findByMarca;
+import static com.site.toffCo.module.produto.infrastructure.persistence.specification.ProductSpec.findByName;
+import static com.site.toffCo.module.produto.infrastructure.persistence.specification.ProductSpec.findByPrice;
+import static com.site.toffCo.module.produto.infrastructure.persistence.specification.ProductSpec.findByStatus;
+import static com.site.toffCo.module.produto.infrastructure.persistence.specification.ProductSpec.findByType;
 
 @Getter
 @Setter
@@ -20,15 +26,17 @@ public class ProductQueryFilter {
     private String type;
     private String status;
     private String marca;
+    private String codigoBarras;
 
     public Specification<Produto> buildSpecification() {
         return Specification
                 .where(findByName(name))
                 .and(findByDescricao(description))
                 .and(findByPrice(price))
-                .and(findByType(Collections.singletonList(type)))
-                .and(findByCategory(categoria))
+                .and(findByType(type))
+                .and(findByCategoria(categoria))
                 .and(findByStatus(status))
-                .and(findByMarca(marca));
+                .and(findByMarca(marca))
+                .and(findByCodigoBarras(codigoBarras));
     }
 }

@@ -1,6 +1,8 @@
 package com.site.toffCo.module.odoo.business;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.site.toffCo.infra.exception.nota.NfNotFound;
+import com.site.toffCo.infra.utils.AuthUtil;
 import com.site.toffCo.module.odoo.client.OdooInvoiceClient;
 import com.site.toffCo.module.odoo.dto.NotaFiscalStatus;
 import com.site.toffCo.module.odoo.dto.OdooInvoiceCreateDTO;
@@ -10,12 +12,15 @@ import com.site.toffCo.module.odoo.entity.NotaFiscal;
 import com.site.toffCo.module.odoo.repository.NotaFiscalRepository;
 import com.site.toffCo.module.pedido.entity.Pedido;
 import com.site.toffCo.module.pedido.repository.PedidoRepository;
+import com.site.toffCo.module.user.entity.Role;
+import com.site.toffCo.module.user.entity.User;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -38,6 +43,7 @@ public class OdooInvoiceService {
     private final OdooInvoiceClient odooInvoiceClient;
     private final NotaFiscalRepository notaFiscalRepository;
     private final PedidoRepository pedidoRepository;
+    private final AuthUtil authUtil;
 
     // =========================================================================
     // EMITIR — chamado pelo Consumer ao consumir a fila
@@ -265,22 +271,31 @@ public class OdooInvoiceService {
      * @return DTO com os dados da nota para exibição no frontend
      */
     @Transactional(readOnly = true)
-    public OdooInvoiceStatusDTO consultarStatus(UUID pedidoId) {
-        NotaFiscal notaFiscal = notaFiscalRepository
-                .findByPedidoId(pedidoId)
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "Nenhuma NF-e encontrada para o pedido: " + pedidoId
-                ));
+    public OdooInvoiceStatusDTO consultarStatus(UUID pedidoId, User usuario) {
+        boolean podeConsultarQualquerPedido = usuario.getRole() == Role.ADMIN
+                || usuario.getRole() == Role.EMPLOYEE;
+
+        Optional<NotaFiscal> notaFiscal = podeConsultarQualquerPedido
+                ? notaFiscalRepository.findByPedidoId(pedidoId)
+                : notaFiscalRepository.findByPedidoIdAndPedidoUserId(pedidoId, usuario.getId());
+
+        NotaFiscal nota = notaFiscal.orElseThrow(() -> new NfNotFound(
+                "Nota fiscal não encontrada para o pedido: " + pedidoId
+        ));
 
         return new OdooInvoiceStatusDTO(
                 pedidoId,
-                notaFiscal.getStatus(),
-                notaFiscal.getNumeroNota(),
-                notaFiscal.getChaveAcesso(),
-                notaFiscal.getUrlDanfe(),
-                notaFiscal.getUrlXml(),
-                notaFiscal.getMensagemErro()
+                nota.getStatus(),
+                nota.getNumeroNota(),
+                nota.getChaveAcesso(),
+                apenasHttps(nota.getUrlDanfe()),
+                apenasHttps(nota.getUrlXml()),
+                nota.getMensagemErro()
         );
+    }
+
+    private String apenasHttps(String url) {
+        return url != null && url.startsWith("https://") ? url : null;
     }
 
     // =========================================================================

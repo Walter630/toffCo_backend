@@ -35,12 +35,6 @@ public class SecurityFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        String path = request.getServletPath();
-        if (path.startsWith("/webhook/whatsapp/") || path.startsWith("/api/webhook/")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
         String token = recuperarToken(request);
 
         if (token == null) {
@@ -148,9 +142,9 @@ public class SecurityFilter extends OncePerRequestFilter {
 
         response.getWriter().write("""
                 {
-                  "status": 401,
-                  "error": "UNAUTHORIZED",
-                  "message": "%s"
+                  "message": "%s",
+                  "code": "UNAUTHORIZED",
+                  "details": {}
                 }
                 """.formatted(escapedMessage));
     }
@@ -169,7 +163,7 @@ public class SecurityFilter extends OncePerRequestFilter {
                 || path.equals("/api/auth/register")
                 || path.equals("/api/auth/refresh_token")
                 // Webhooks da Evolution API e Odoo
-                || path.startsWith("/api/webhook/")
+                || path.startsWith("/api/webhook/odoo/")
                 || path.startsWith("/api/webhooks/")
                 || path.startsWith("/instance/")
                 || path.startsWith("/webhook/whatsapp/")

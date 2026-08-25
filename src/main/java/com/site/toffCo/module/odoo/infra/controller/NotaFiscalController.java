@@ -1,5 +1,6 @@
 package com.site.toffCo.module.odoo.infra.controller;
 
+import com.site.toffCo.infra.utils.AuthUtil;
 import com.site.toffCo.module.odoo.business.OdooInvoiceService;
 import com.site.toffCo.module.odoo.dto.OdooInvoiceStatusDTO;
 import lombok.RequiredArgsConstructor;
@@ -12,18 +13,18 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/nota-fiscal")
+@RequestMapping({"/api/nota-fiscal", "/api/notas-fiscais"})
 @RequiredArgsConstructor
 public class NotaFiscalController {
 
     private final OdooInvoiceService odooInvoiceService;
-
-    // =========================================================================
-    // GET NOTA FISCAL
-    // =========================================================================
+    private final AuthUtil authUtil;
 
     @GetMapping("/{pedidoId}")
     public ResponseEntity<OdooInvoiceStatusDTO> getNotaFiscal(@PathVariable UUID pedidoId) {
-        return ResponseEntity.ok().body(odooInvoiceService.consultarStatus(pedidoId));
+        return ResponseEntity.ok(odooInvoiceService.consultarStatus(
+                pedidoId,
+                authUtil.getUserLogado()
+        ));
     }
 }

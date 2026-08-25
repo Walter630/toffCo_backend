@@ -1,4 +1,4 @@
-CREATE TABLE odoo_processed_events
+CREATE TABLE IF NOT EXISTS odoo_processed_events
 (
     id                UUID         NOT NULL PRIMARY KEY,
     odoo_move_line_id BIGINT       NOT NULL,

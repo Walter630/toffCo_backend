@@ -2,9 +2,11 @@ package com.site.toffCo.module.carrinho.repository;
 
 import com.site.toffCo.module.admin.dto.AdminCarrinhoDTO;
 import com.site.toffCo.module.carrinho.entity.Carrinho;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -18,14 +20,37 @@ public interface CarrinhoRepository extends JpaRepository<Carrinho, UUID> {
 
     Optional<Carrinho> findByUser_Id(UUID id);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
-        SELECT distinct c
-        from Carrinho c
-        left join fetch c.itens i
-        left join fetch i.produto
-        where c.user.id = :userId
-        """)
+    SELECT distinct c
+    from Carrinho c
+    left join fetch c.itens i
+    left join fetch i.produto
+    where c.user.id = :userId
+    """)
+    Optional<Carrinho> findByCarrinhoCompletoForUpdate(UUID userId);
+
+    @Query("""
+    SELECT distinct c
+    from Carrinho c
+    left join fetch c.itens i
+    left join fetch i.produto
+    where c.user.id = :userId
+    """)
     Optional<Carrinho> findCarrinhoCompletoUserById(UUID userId);
+
+
+    @Query("""
+        SELECT DISTINCT c
+        FROM Carrinho c
+            LEFT JOIN FETCH c.itens i
+            LEFT JOIN FETCH i.produto
+            WHERE c.expiresAt < :now
+              AND c.carrinhoStatus = 'ABERTO'
+            ORDER BY c.expiresAt ASC
+            LIMIT 50
+        """)
+    List<Carrinho> findExpiradosComItensParaLiberar(LocalDateTime now);
 
     List<Carrinho> findByExpiresAtBefore(LocalDateTime expiresAt);
 

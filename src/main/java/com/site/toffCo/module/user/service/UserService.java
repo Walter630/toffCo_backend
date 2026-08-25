@@ -66,9 +66,13 @@ public class UserService {
                 userSave.getUsername()
         );
 
-        registerProducer.send(
-                new RegisterEvent(userSave.getEmail(), userSave.getUsername())
-        );
+        try {
+            registerProducer.send(
+                    new RegisterEvent(userSave.getEmail(), userSave.getUsername())
+            );
+        } catch (Exception ex) {
+            log.warn("Falha ao enviar evento de registro para RabbitMQ. O usuário foi criado normalmente. Erro: {}", ex.getMessage());
+        }
         log.info("User criado: {}", userCriado);
         return mapper.toDto(userSave);
     }
@@ -103,20 +107,24 @@ public class UserService {
 
     @Transactional
     public LoginResponseDTO refreshToken(RefreshTokenDTO refreshTokenDTO) {
-        return refreshTokenService.findByToken(refreshTokenDTO.refreshToken())
+        RefreshToken token = refreshTokenService.findByToken(refreshTokenDTO.refreshToken())
                 .map(refreshTokenService::verifyExpiration)
-                .map(RefreshToken::getUser)
-                .map(user -> {
-                    String newAccessToken = tokenService.generateToken(user.getEmail());
-                    return new LoginResponseDTO
-                            (newAccessToken, refreshTokenDTO.refreshToken(),
-                                    new LoginResponseDTO.UserRequestDTO(
-                                            user.getEmail(),
-                                            user.getUsername(),
-                                            user.getRole().name()
-                    ));
-                })
-                .orElseThrow(() -> new InvalidRefreshToken("Refresh token invalid"));
+                .orElseThrow(() -> new InvalidRefreshToken("Refresh token inválido"));
+
+        var user = token.getUser();
+        refreshTokenService.revoke(token);
+        RefreshToken rotatedToken = refreshTokenService.createRefreshToken(user);
+        String newAccessToken = tokenService.generateToken(user.getEmail());
+
+        return new LoginResponseDTO(
+                newAccessToken,
+                rotatedToken.getToken(),
+                new LoginResponseDTO.UserRequestDTO(
+                        user.getEmail(),
+                        user.getUsername(),
+                        user.getRole().name()
+                )
+        );
     }
 
     //============================== LISTUSER ==============================

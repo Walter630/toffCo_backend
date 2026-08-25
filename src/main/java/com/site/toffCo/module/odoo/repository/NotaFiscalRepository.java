@@ -17,6 +17,12 @@ public interface NotaFiscalRepository extends JpaRepository<NotaFiscal, UUID> {
     @Query("SELECT n FROM NotaFiscal n WHERE n.pedido.id = :pedidoId")
     Optional<NotaFiscal> findByPedidoId(@Param("pedidoId") UUID pedidoId);
 
+    @Query("SELECT n FROM NotaFiscal n WHERE n.pedido.id = :pedidoId AND n.pedido.user.id = :userId")
+    Optional<NotaFiscal> findByPedidoIdAndPedidoUserId(
+            @Param("pedidoId") UUID pedidoId,
+            @Param("userId") UUID userId
+    );
+
     /**
      * Guarda de idempotência — verifica se já existe nota para o pedido.
      * Evita duplicatas no caso de retry do RabbitMQ.

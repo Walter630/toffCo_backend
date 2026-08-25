@@ -1,49 +1,1 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!--
-    SpotBugs — Arquivo de exclusão
-    
-    Classes/padrões que o SpotBugs deve IGNORAR.
-    Motivo: código gerado por Lombok/MapStruct gera falsos positivos.
-    
-    Caso o SpotBugs reporte algo que você sabe que é falso positivo,
-    adicione uma nova regra <Match> aqui.
--->
-<FindBugsFilter>
-    
-    <!-- Lombok: getters retornando referência direta a listas (normal em JPA entities) -->
-    <Match>
-        <Source name="~.*\.java"/>
-        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
-    </Match>
-    
-    <!-- MapStruct: classes geradas (XxxMapperImpl) -->
-    <Match>
-        <Class name="~.*MapperImpl"/>
-    </Match>
-    
-    <!-- Records/DTOs: equals/hashCode já são corretos por padrão -->
-    <Match>
-        <Class name="~.*Dto"/>
-        <Bug pattern="HE_EQUALS_USE_HASHCODE,HE_EQUALS_NO_HASHCODE"/>
-    </Match>
-    
-    <!-- Classes de teste -->
-    <Match>
-        <Class name="~.*Test"/>
-    </Match>
-    <Match>
-        <Class name="~.*Tests"/>
-    </Match>
-    
-    <!-- Application class (main method) -->
-    <Match>
-        <Class name="com.site.toffCo.ToffCoApplication"/>
-    </Match>
-    
-    <!-- Entities JPA: serialização não obrigatória com Spring Boot moderno -->
-    <Match>
-        <Package name="~com\.site\.toffCo\.module\..*\.entity"/>
-        <Bug pattern="SE_NO_SERIALVERSIONID,SE_BAD_FIELD"/>
-    </Match>
-    
-</FindBugsFilter>
+<?xml version="1.0" encoding="UTF-8"?><!--    SpotBugs — Arquivo de exclusão        Classes/padrões que o SpotBugs deve IGNORAR.    Motivo: código gerado por Lombok/MapStruct gera falsos positivos.        Caso o SpotBugs reporte algo que você sabe que é falso positivo,    adicione uma nova regra <Match> aqui.--><FindBugsFilter>        <!-- Lombok: getters retornando referência direta a listas (normal em JPA entities) -->    <Match>        <Source name="~.*\.java"/>        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>    </Match>        <!-- MapStruct: classes geradas (XxxMapperImpl) -->    <Match>        <Class name="~.*MapperImpl"/>    </Match>        <!-- Records/DTOs: equals/hashCode já são corretos por padrão -->    <Match>        <Class name="~.*Dto"/>        <Bug pattern="HE_EQUALS_USE_HASHCODE,HE_EQUALS_NO_HASHCODE"/>    </Match>        <!-- Classes de teste -->    <Match>        <Class name="~.*Test"/>    </Match>    <Match>        <Class name="~.*Tests"/>    </Match>        <!-- Application class (main method) -->    <Match>        <Class name="com.site.toffCo.ToffCoApplication"/>    </Match>        <!-- Entities JPA: serialização não obrigatória com Spring Boot moderno -->    <Match>        <Package name="~com\.site\.toffCo\.module\..*\.entity"/>        <Bug pattern="SE_NO_SERIALVERSIONID,SE_BAD_FIELD"/>    </Match>    </FindBugsFilter>

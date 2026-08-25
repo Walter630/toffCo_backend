@@ -22,10 +22,12 @@ public class OutboxPublisher {
     private final RabbitTemplate rabbitTemplate;
     private final ObjectMapper objectMapper;
 
+    private static final int MAX_ATTEMPS = 10;
+
     @Scheduled(fixedDelay = 5000)
     @Transactional
     public void publishEventPendents() {
-        List<OutboxEvent> events = outboxEventRepository.findTop50ByPublishedFalseOrderByCreatedAtAsc();
+        List<OutboxEvent> events = outboxEventRepository.findTop50ByPublishedFalseAndAttemptsLessThanOrderByCreatedAtAsc(MAX_ATTEMPS);
         for (OutboxEvent evento : events) {
             try {
                     String routingKey = resolverRoutingKey(evento.getTypeEvent());
@@ -48,8 +50,12 @@ public class OutboxPublisher {
 
                 } catch (Exception e) {
                     evento.setAttempts(evento.getAttempts() + 1);
-                    log.warn("Falha ao publicar outbox id={}, tentativa={}",
-                            evento.getId(), evento.getAttempts(), e);
+                    if(evento.getAttempts() >= MAX_ATTEMPS) {
+                        log.error("Outbox DEAD-LETTER: id={}, type={}, tentativas esgotadas. Evento nao sera mais processado",
+                                evento.getId(), evento.getTypeEvent());
+                    } else {
+                        log.warn("Falha ao publicar outbox id={}, tentativa={}/{}", evento.getId(), evento.getAttempts(), MAX_ATTEMPS, e);
+                    }
                 }
         }
     }

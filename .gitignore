@@ -34,3 +34,7 @@ build/
 
 .env
 application-local.yaml
+
+### Uploads e arquivos gerados ###
+uploads/
+semantic-review/

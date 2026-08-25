@@ -44,6 +44,10 @@ public class RefreshTokenService {
         return token;
     }
 
+    public void revoke(RefreshToken token) {
+        refreshTokenRepository.delete(token);
+    }
+
     public Optional<RefreshToken> findByToken(String token) {
         return refreshTokenRepository.findByToken(token);
     }

@@ -1,6 +1,7 @@
 package com.site.toffCo.module.pedido.controller;
 
 import com.site.toffCo.infra.utils.AuthUtil;
+import com.site.toffCo.module.pedido.dto.BaixaEstoqueRequestDTO;
 import com.site.toffCo.module.pedido.dto.PedidoCheckoutResponseDTO;
 import com.site.toffCo.module.pedido.dto.PedidoResumoDTO;
 import com.site.toffCo.module.pedido.dto.VendaPresencialRequestDTO;
@@ -66,13 +67,16 @@ public class PedidoController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/{id}/baixar-estoque")
-    public ResponseEntity<PedidoResumoDTO> baixarEstoque(@PathVariable UUID id) {
-        return ResponseEntity.ok(pedidoService.atualizarStatus(id, PedidoStatus.EM_SEPARACAO));
+    public ResponseEntity<PedidoResumoDTO> baixarEstoque(
+            @PathVariable UUID id,
+            @RequestBody(required = false) BaixaEstoqueRequestDTO request
+    ) {
+        return ResponseEntity.ok(pedidoService.baixarEstoque(id, request));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/{id}/confirmar")
     public ResponseEntity<PedidoResumoDTO> confirmarPedido(@PathVariable UUID id) {
-        return ResponseEntity.ok(pedidoService.atualizarStatus(id, PedidoStatus.ENTREGUE));
+        return ResponseEntity.ok(pedidoService.confirmarPagamento(id));
     }
 }

@@ -6,6 +6,8 @@ import org.hibernate.annotations.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -13,7 +15,7 @@ import java.util.UUID;
 @Entity
 @NoArgsConstructor
 @Table(name = "tb_produto")
-@SQLDelete(sql = "UPDATE tb_produto SET ativo = false WHERE id = ?")
+@SQLDelete(sql = "UPDATE tb_produto SET ativo = false WHERE id = ? AND version = ?")
 @SQLRestriction("ativo = true")
 public class Produto {
 
@@ -33,6 +35,18 @@ public class Produto {
     private BigDecimal price;
 
     private String image;
+
+    @ElementCollection
+    @CollectionTable(
+            name = "tb_produto_images",
+            joinColumns = @JoinColumn(name = "produto_id")
+    )
+    @Column(name = "image_url", length = 1000)
+    private List<String> images = new ArrayList<>();
+
+    @Column(nullable = false)
+    private boolean featured = false;
+
     private String categoria;
 
     @Column(nullable = false, precision = 19, scale = 2)
@@ -57,7 +71,8 @@ public class Produto {
     private byte[] imagemCodigoBarras;
 
     @Enumerated(EnumType.STRING)
-    private ProductStatus status;
+    @Column(nullable = false)
+    private ProductStatus status = ProductStatus.DISPONIVEL;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
@@ -113,9 +128,18 @@ public class Produto {
     private void validateEstoque(BigDecimal estoque) {
         if (estoque == null || estoque.signum() < 0) {
             throw new IllegalArgumentException(
-                    "O estoque não pode ser negativo"
+                    "O estoque deve ser maior ou igual a zero"
             );
         }
+        if (estoque.stripTrailingZeros().scale() > 0) {
+            throw new IllegalArgumentException(
+                    "O estoque deve ser um número inteiro"
+            );
+        }
+    }
+
+    public void validarEstoqueAtual() {
+        validateEstoque(this.estoque);
     }
 
     private void validateQuantidade(BigDecimal quantidade) {
@@ -134,7 +158,9 @@ public class Produto {
             String codigoBarras,
             byte[] imagemCodigoBarras
     ) {
-        if (codigoBarras == null || codigoBarras.isBlank()) {
+        String codigoNormalizado = normalizarCodigoBarras(codigoBarras);
+
+        if (codigoNormalizado == null) {
             throw new IllegalArgumentException(
                     "O código de barras não pode estar vazio"
             );
@@ -146,7 +172,15 @@ public class Produto {
             );
         }
 
-        this.codigoBarras = codigoBarras;
+        this.codigoBarras = codigoNormalizado;
         this.imagemCodigoBarras = imagemCodigoBarras;
+    }
+
+    public static String normalizarCodigoBarras(String codigoBarras) {
+        if (codigoBarras == null) {
+            return null;
+        }
+        String normalizado = codigoBarras.replaceAll("\\s+", "");
+        return normalizado.isBlank() ? null : normalizado;
     }
 }

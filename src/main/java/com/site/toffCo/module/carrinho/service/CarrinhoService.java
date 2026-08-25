@@ -51,7 +51,7 @@ public class CarrinhoService {
 
         return repository.findCarrinhoCompletoUserById(user.getId())
                 .orElseGet(() ->
-                    criarOuBuscarDepoisDaCorrida(user));
+                        criarOuBuscarDepoisDaCorrida(user));
     }
 
     //Cria o carrinho e caso esteja com erro ou nao tenha criado ele mostra
@@ -87,7 +87,6 @@ public class CarrinhoService {
 
         return mapper.toDto(carrinho);
     }
-
 
 
     // ============================== ADD ITEM ==============================
@@ -347,21 +346,29 @@ public class CarrinhoService {
     @Scheduled(fixedRate = 60000)
     @Transactional
     public void liberarCarrinhoExpirados() {
-        List<Carrinho> carrinhos = repository.findByExpiresAtBefore(LocalDateTime.now());
+        List<Carrinho> carrinhos = repository.findExpiradosComItensParaLiberar(LocalDateTime.now());
 
         for (Carrinho carrinho : carrinhos) {
-            for (ItemCarrinho item : carrinho.getItens()) {
-                Produto produto = produtoRepository.findByIdForUpdate(item.getProduto().getId())
-                        .orElseThrow();
-                produto.setEstoque(produto.getEstoque().add(
-                        BigDecimal.valueOf(item.getQuantidade())
-                ));
-            }
+            try {
+                for (ItemCarrinho item : carrinho.getItens()) {
+                    Produto produto = produtoRepository.findByIdForUpdate(item.getProduto().getId())
+                            .orElseThrow();
+                    produto.setEstoque(produto.getEstoque().add(
+                            BigDecimal.valueOf(item.getQuantidade())
+                    ));
+                }
 
-            carrinho.getItens().clear();
-            carrinho.setValorTotal(BigDecimal.ZERO);
-            carrinho.setExpiresAt(null);
+                carrinho.getItens().clear();
+                carrinho.setValorTotal(BigDecimal.ZERO);
+                carrinho.setExpiresAt(null);
+                carrinho.setCarrinhoStatus(CarrinhoStatus.EXPIRADO);
+
+                log.info("Carrinho expirado liberado: id={}, usuario={}", carrinho.getId(), carrinho.getUser().getId());
+            } catch (Exception e) {
+                log.error("Erro ao liberar carrinho expirado id={}: {}", carrinho.getId(), e.getMessage(), e);
+            }
         }
+
     }
 
     // ============================== AUXILIARES ==============================
@@ -430,8 +437,8 @@ public class CarrinhoService {
 
     private Produto findForUpdate(ItemCarrinho item) {
         return produtoRepository.findByIdForUpdate(
-                item.getProduto().getId()
-        )
+                        item.getProduto().getId()
+                )
                 .orElseThrow(() -> new ProductNotFound("Product not found"));
     }
 }
